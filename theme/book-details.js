@@ -125,9 +125,9 @@
     #nh-finished-badge .material-symbols {
         font-size: 26px !important;
         line-height: 1 !important;
-        color: #e8a23e !important;
+        color: var(--nh-amber, #e0c27a) !important;
         font-variation-settings: 'wght' 700 !important;
-        text-shadow: 0 0 10px rgba(232, 162, 62, 0.45) !important;
+        text-shadow: 0 0 10px var(--nh-amber-shadow, rgba(224, 194, 122, 0.30)) !important;
     }
 
     /* Metadata Container */
