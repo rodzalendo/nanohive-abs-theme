@@ -19,6 +19,9 @@ through the proxy, they just won't be themed.
   accent, and which shelves and sidebar entries to show
 - An expanded "Recent Series" shelf (ABS's native one is capped at 5 items)
 
+
+[Home](docs/Book Page.png)
+
 ## Run it
 
 ```bash
