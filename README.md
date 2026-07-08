@@ -12,6 +12,7 @@ through the proxy, they just won't be themed.
 | Home | Book details |
 |---|---|
 | ![Home](docs/home.png) | ![Book details](docs/book-page.png) |
+| ![Home](docs/home-2.png) | ![Home](docs/home-3.png) |
 
 ![Settings panel](docs/settings.png)
 
