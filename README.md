@@ -9,6 +9,12 @@ Nothing is written to your ABS container. Remove the proxy and you're back to st
 Web only. The ABS mobile apps render natively and are unaffected — they'll keep working
 through the proxy, they just won't be themed.
 
+| Home | Book details |
+|---|---|
+| ![Home](docs/home.png) | ![Book details](docs/book-page.png) |
+
+![Settings panel](docs/settings.png)
+
 ## What it changes
 
 - A warm, cinematic dark palette with 12 base themes and a configurable accent colour
@@ -19,8 +25,6 @@ through the proxy, they just won't be themed.
   accent, and which shelves and sidebar entries to show
 - An expanded "Recent Series" shelf (ABS's native one is capped at 5 items)
 
-
-Book%20Page.png
 
 ## Run it
 
