@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.34.0  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.34.1  (injected build) */
 
 (function () {
   'use strict';
@@ -1532,13 +1532,28 @@
         if (sib) { const cs = getComputedStyle(sib); row.style.paddingLeft = cs.paddingLeft; row.style.paddingRight = cs.paddingRight; }
       } catch (e) {}
 
-      row.querySelectorAll('.nh-rs-card').forEach(a => {
-        a.addEventListener('click', (e) => {
-          const rt = a.getAttribute('data-route');
-          if (rt && nhRouterPush(rt)) e.preventDefault();
-        });
-      });
+      // Navigation is handled by a single delegated listener (nhBindRecentSeriesNav),
+      // not per-card handlers — the row's innerHTML is rebuilt on data changes, which
+      // would strip listeners bound to individual <a> elements and let the browser
+      // follow the raw href, reloading the page and killing playback.
+      nhBindRecentSeriesNav();
     } catch (e) {}
+  }
+
+  // One capture-phase listener on a stable ancestor. Intercepts clicks on any current
+  // or future .nh-rs-card and routes them client-side, so the media player survives.
+  // Tagged on the node itself (not a module flag) so it re-binds if #bookshelf is
+  // replaced on library switches.
+  function nhBindRecentSeriesNav() {
+    const host = document.getElementById('bookshelf');
+    if (!host || host.dataset.nhRsNav === '1') return;
+    host.dataset.nhRsNav = '1';
+    host.addEventListener('click', (e) => {
+      const card = e.target.closest && e.target.closest('.nh-rs-card');
+      if (!card) return;
+      const rt = card.getAttribute('data-route');
+      if (rt && nhRouterPush(rt)) { e.preventDefault(); e.stopPropagation(); }
+    }, true);
   }
 
   // Series deck scaling. Baseline constants (196/168/12/24) were designed at slider=100
