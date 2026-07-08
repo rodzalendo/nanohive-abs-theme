@@ -1,4 +1,4 @@
-/* NanoHive ABS — Book Details Redesign  v1.18.0  (injected build) */
+/* NanoHive ABS — Book Details Redesign  v1.19.0  (injected build) */
 
 (function () {
   'use strict';
@@ -89,12 +89,45 @@
         width: 100% !important;
     }
 
-    /* Hide native overlays on cover */
-    #item-page-wrapper > div.flex > div:first-child .bg-yellow-400.absolute.bottom-0,
+    /* Hide native cover overlays.
+       Progress bar: ABS hardcodes its width to 208px, so on the resized detail cover it
+       renders as a stray ~half-width stub. Target it by position (bottom-0 left-0 h-1.5),
+       NOT colour, so both the in-progress (bg-yellow-400) and finished (bg-success)
+       variants go. It stays in the DOM (display:none), so its class is still readable for
+       #nh-finished-badge detection below. Also hides the hover/edit overlay. */
+    #item-page-wrapper > div.flex > div:first-child .absolute.bottom-0.left-0.h-1\\.5,
     #item-page-wrapper > div.flex > div:first-child .group-hover\\:opacity-100 {
         display: none !important;
         opacity: 0 !important;
         visibility: hidden !important;
+    }
+
+    /* Finished indicator: frosted circular checkmark, top-right of the cover.
+       Injected by JS (section 4) when the hidden native bar carries bg-success. */
+    #nh-finished-badge {
+        position: absolute !important;
+        top: 14px !important;
+        right: 14px !important;
+        z-index: 20 !important;
+        width: 44px !important;
+        height: 44px !important;
+        border-radius: 50% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: rgba(20, 17, 13, 0.35) !important;
+        backdrop-filter: blur(12px) saturate(1.3) !important;
+        -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+        pointer-events: none !important;
+    }
+    #nh-finished-badge .material-symbols {
+        font-size: 26px !important;
+        line-height: 1 !important;
+        color: #e8a23e !important;
+        font-variation-settings: 'wght' 700 !important;
+        text-shadow: 0 0 10px rgba(232, 162, 62, 0.45) !important;
     }
 
     /* Metadata Container */
@@ -581,6 +614,26 @@
               }
 
               nativeProgress.insertAdjacentElement('afterend', customUI);
+          }
+      }
+
+      // 4. Finished badge on cover (replaces the removed native progress bar).
+      //    The native bar is hidden via CSS but stays in the DOM, so its class still tells us
+      //    the state: bg-success == finished. Append/remove a frosted checkmark in the cover's
+      //    positioned wrapper (.relative.group, the bar's parent) so it tracks toggles.
+      const coverBar = document.querySelector('#item-page-wrapper > div.flex > div:first-child .absolute.bottom-0.left-0.h-1\\.5');
+      if (coverBar && coverBar.parentElement) {
+          const coverWrap = coverBar.parentElement;
+          const finished = coverBar.classList.contains('bg-success');
+          let badge = coverWrap.querySelector('#nh-finished-badge');
+          if (finished && !badge) {
+              badge = document.createElement('div');
+              badge.id = 'nh-finished-badge';
+              badge.setAttribute('aria-label', 'Finished');
+              badge.innerHTML = '<span class="material-symbols">check</span>';
+              coverWrap.appendChild(badge);
+          } else if (!finished && badge) {
+              badge.remove();
           }
       }
 
