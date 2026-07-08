@@ -1,0 +1,6 @@
+.git
+.github
+README.md
+docker-compose.example.yml
+LICENSE
+*.tar.gz

@@ -1,0 +1,37 @@
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    restart: unless-stopped
+    # ...your normal ABS config (volumes, etc.)...
+    # No published port needed if only the theme proxy talks to it.
+    expose:
+      - "80"
+
+  abs-theme:
+    image: ghcr.io/rodzalendo/nanohive-abs-theme:latest
+    # Or build locally:  build: .
+    restart: unless-stopped
+    depends_on:
+      - audiobookshelf
+    ports:
+      - "8080:80"
+    environment:
+      ABS_UPSTREAM: "http://audiobookshelf:80"
+
+      # Everything below is optional — these are the defaults every user sees on
+      # their first visit. They can change any of it in the in-app settings panel.
+      #
+      # NH_APP_NAME: "My Library"
+      # NH_ACCENT_COLOR: "#e0c27a"
+      # NH_BASE_THEME: "warm"        # warm slate black navy mocha pine plum crimson ocean sand steel wine
+      # NH_MAIN_FONT: "Merriweather"
+      # NH_FONT_SCALE: "1.0"
+      # NH_CAROUSEL_TIMING: "15"     # seconds per hero slide; 0 disables auto-advance
+      # NH_RECENT_SERIES_COUNT: "12"
+      #
+      # If you pick a base theme other than `warm`, set NH_FOUC_BG to its canvas
+      # colour so the pre-paint background matches (see README).
+      # NH_FOUC_BG: "#0b1618"
+
+# Then point your browser / Cloudflare tunnel / reverse proxy at
+# the abs-theme container (port 8080) instead of ABS directly.
