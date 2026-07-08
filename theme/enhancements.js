@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.34.1  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.34.2  (injected build) */
 
 (function () {
   'use strict';
@@ -1446,11 +1446,24 @@
   }
 
   function nhRouterPush(route) {
+    // Page-world path: direct router access (proxy injection, userscript in page context).
     try { if (window.$nuxt && window.$nuxt.$router) { window.$nuxt.$router.push(route); return true; } } catch (e) {}
     try {
       const app = document.getElementById('__layout') || document.getElementById('__nuxt');
       const vue = app && (app.__vue__ || (app.firstElementChild && app.firstElementChild.__vue__));
       if (vue && vue.$router) { vue.$router.push(route); return true; }
+    } catch (e) {}
+    // Isolated-world path (Chrome content script): window.$nuxt is unreachable, so drive
+    // Vue Router through the History API. It listens for popstate and navigates
+    // client-side without a full reload — so the media player survives.
+    try {
+      const base = getBaseNH().replace(/\/$/, '');
+      const url = base + route;
+      if (window.history && typeof window.history.pushState === 'function') {
+        window.history.pushState({}, '', url);
+        window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+        return true;
+      }
     } catch (e) {}
     return false;
   }
