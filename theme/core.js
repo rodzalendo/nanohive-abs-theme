@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.27.54  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.27.55  (injected build) */
 
 (function () {
   'use strict';
@@ -301,6 +301,21 @@ div.fixed.right-4.z-50 > div span.material-symbols:hover { color: var(--nh-amber
 [cy-id="title"] { font-family: var(--nh-serif) !important; font-weight: 500; color: var(--nh-text-2) !important; }
 [cy-id="subtitle"], [cy-id="line2"], [cy-id="line3"] { color: var(--nh-muted-2) !important; }
 [cy-id="progressBar"] { box-shadow: none !important; }
+
+/* Finished books on shelves: the 100%-width success bar carries no information, so hide
+   it and mark the card with a small check badge (mirrors the detail-page read toggle).
+   Bars are colour-variant (in-progress bg-yellow-400, finished bg-success) — target by
+   position classes to catch the finished one only. */
+[cy-id="card"][id^="book-card-"] .absolute.bottom-0.left-0.h-1\\.5.bg-success { display: none !important; }
+[cy-id="card"][id^="book-card-"]:has(.absolute.bottom-0.left-0.h-1\\.5.bg-success)::after {
+  content: '✓'; position: absolute; top: 0.375em; right: 0.375em; z-index: 6;
+  width: 1.55em; height: 1.55em; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: rgba(16,13,10,0.72); color: var(--nh-amber);
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  font-weight: 700; font-size: 0.85em; line-height: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+}
 .bookshelf-row h2 { font-family: var(--nh-serif) !important; font-weight: 500 !important; font-size: 1.55rem !important; letter-spacing: -0.01em; color: var(--nh-text-1) !important; }
 
 [cy-id="leftScrollButton"]:hover, [cy-id="rightScrollButton"]:hover { color: var(--nh-amber) !important; background-color: var(--nh-amber-tint) !important; }
@@ -520,6 +535,14 @@ button.bg-success, button.bg-success *, a.bg-success, a.bg-success *, .abs-btn.b
     #nh-hero-nav { margin-top: 10px !important; }
     #nh-hero-nav .nh-nav-arrow { width: 30px !important; height: 30px !important; }
 }
+
+/* Series-page header (built by enhancements.js). The header sibling above #bookshelf
+   takes over the appbar/toolbar clearance, and the bookshelf gives up that height so
+   the 100% chain still sums exactly (no lip, no clipped bottom). Specificity must beat
+   body.nh-has-toolbar #bookshelf, hence the body prefix; placed last by source order. */
+body #nh-series-header { padding: 87px 26px 10px; }
+body.nh-has-toolbar #nh-series-header { padding-top: 127px; }
+body #bookshelf.nh-with-series-header { padding-top: 12px !important; height: calc(100% - var(--nh-sh-h, 0px)) !important; }
 `;
 
   const style = document.createElement('style');

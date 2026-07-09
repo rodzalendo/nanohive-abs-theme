@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.34.2  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.35.0  (injected build) */
 
 (function () {
   'use strict';
@@ -1428,6 +1428,15 @@
     const s = document.createElement('style');
     s.id = 'nh-recent-series-style';
     s.textContent = `
+      /* Series detail page header (nhSeriesHeader) */
+      #nh-series-header .nh-sh-eyebrow { font-family: var(--nh-sans, system-ui); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--nh-amber, #e0c27a); opacity: 0.9; }
+      #nh-series-header h1 { font-family: var(--nh-serif), Georgia, serif; font-size: 1.55rem; font-weight: 600; color: var(--nh-text-1, #f2ecdf); margin: 2px 0 4px; line-height: 1.15; }
+      #nh-series-header .nh-sh-meta { font-size: 0.85rem; color: var(--nh-muted-2, #9a9085); margin-bottom: 6px; }
+      #nh-series-header .nh-sh-desc { max-width: 72ch; font-size: 0.85rem; line-height: 1.5; color: var(--nh-text-2, #cfc6b8); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+      @media (max-width: 640px) {
+        #nh-series-header h1 { font-size: 1.2rem; }
+        #nh-series-header .nh-sh-desc { -webkit-line-clamp: 2; }
+      }
       #nh-recent-series-row { margin: 0 0 2.2rem; box-sizing: border-box; width: 100%; }
       #nh-recent-series-row .nh-rs-heading { font-family: var(--nh-serif) !important; font-weight: 500; font-size: 1.55rem; letter-spacing: -0.01em; color: var(--nh-text-1, #f4eee2); margin: 0 0 1rem; }
       #nh-recent-series-row .nh-rs-scroll { display: flex; flex-wrap: nowrap; gap: calc(var(--nh-rs-cw, 140px) * 0.076); overflow-x: auto; overflow-y: hidden; padding: 6px 2px 14px; scrollbar-width: none; -ms-overflow-style: none; }
@@ -1439,7 +1448,7 @@
       #nh-recent-series-row .nh-rs-cover.c2 { transform: translate(calc(var(--nh-rs-cw, 140px) * 0.086), calc(var(--nh-rs-cw, 140px) * 0.086)); z-index: 2; filter: brightness(0.78); }
       #nh-recent-series-row .nh-rs-cover.c3 { transform: translate(calc(var(--nh-rs-cw, 140px) * 0.171), calc(var(--nh-rs-cw, 140px) * 0.171)); z-index: 1; filter: brightness(0.60); }
       #nh-recent-series-row .nh-rs-card:hover .nh-rs-cover.c1 { filter: brightness(0.7); box-shadow: 0 10px 24px rgba(0,0,0,0.42); }
-      #nh-recent-series-row .nh-rs-count { position: absolute; left: 8px; top: 8px; z-index: 5; background: rgba(255,255,255,0.55); backdrop-filter: blur(10px) brightness(1.2) saturate(1.05); -webkit-backdrop-filter: blur(10px) brightness(1.2) saturate(1.05); border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 2px 8px rgba(0,0,0,0.4); border-radius: 8px; padding: calc(var(--nh-rs-cw, 140px) * 0.015) calc(var(--nh-rs-cw, 140px) * 0.064); color: #000; font-weight: 700; font-size: clamp(9px, calc(var(--nh-rs-cw, 140px) * 0.093), 15px); font-family: var(--nh-sans, system-ui); }
+      #nh-recent-series-row .nh-rs-count { position: absolute; left: 8px; top: 8px; z-index: 5; background: rgba(255,255,255,0.55); backdrop-filter: blur(10px) brightness(1.2) saturate(1.05); -webkit-backdrop-filter: blur(10px) brightness(1.2) saturate(1.05); border: 1px solid rgba(255,255,255,0.35); box-shadow: 0 2px 8px rgba(0,0,0,0.4); border-radius: 999px; min-width: 1.7em; text-align: center; padding: 0.12em 0.45em; color: #000; font-weight: 700; font-size: clamp(8px, calc(var(--nh-rs-cw, 140px) * 0.078), 12.5px); font-family: var(--nh-sans, system-ui); }
       #nh-recent-series-row .nh-rs-name { font-family: var(--nh-serif) !important; font-weight: 500; color: var(--nh-text-2, #d8cfc2); font-size: var(--nh-rs-fs, 1rem); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     `;
     document.head.appendChild(s);
@@ -1609,9 +1618,71 @@
     }
   }
 
+  // Series detail page header: series name, authors, count · duration, and the
+  // description of book #1 (smallest whole sequence ≥ 1; 0.x novellas lose to real
+  // entries; fractional beats none). Data read straight from the bookshelf vm's
+  // loaded entities — no extra API call. Idempotent: updates in place each cycle.
+  function nhSeriesHeader() {
+    const onSeries = /\/library\/[^/]+\/series\/[^/?#]+/.test(location.pathname);
+    const bookshelf = document.getElementById('bookshelf');
+    const existing = document.getElementById('nh-series-header');
+    if (!onSeries || !bookshelf) {
+      if (existing) existing.remove();
+      if (bookshelf) bookshelf.classList.remove('nh-with-series-header');
+      document.documentElement.style.removeProperty('--nh-sh-h');
+      return;
+    }
+    const vm = bookshelf.__vue__;
+    const ents = vm && Array.isArray(vm.entities) ? vm.entities.filter(Boolean) : [];
+    if (!ents.length) return;
+
+    let seriesName = '', best = null, bestScore = Infinity, dur = 0;
+    const authors = [];
+    ents.forEach((e) => {
+      const md = (e.media && e.media.metadata) || {};
+      if (e.media && e.media.duration) dur += e.media.duration;
+      if (md.authorName && authors.indexOf(md.authorName) === -1) authors.push(md.authorName);
+      const se = md.series;
+      if (se && se.name && !seriesName) seriesName = se.name;
+      const q = se ? parseFloat(se.sequence) : NaN;
+      // integer ≥1 scores its own value (1 wins), fractional ≥1 after all integers,
+      // sub-1 novellas after those, sequence-less last
+      const score = isFinite(q) ? (q >= 1 ? (Number.isInteger(q) ? q : q + 1000) : q + 2000) : 3000;
+      if (score < bestScore) { bestScore = score; best = e; }
+    });
+
+    let desc = '';
+    try {
+      const raw = best && best.media && best.media.metadata && best.media.metadata.description;
+      if (raw) { const t = document.createElement('div'); t.innerHTML = raw; desc = (t.textContent || '').trim(); }
+    } catch (e) {}
+
+    const total = (vm.totalEntities && vm.totalEntities > ents.length) ? vm.totalEntities : ents.length;
+    const allLoaded = !vm.totalEntities || ents.length >= vm.totalEntities;
+    const durStr = allLoaded && dur > 60 ? Math.floor(dur / 3600) + 'h ' + Math.round((dur % 3600) / 60) + 'm' : '';
+    const authStr = authors.slice(0, 2).join(', ') + (authors.length > 2 ? ' & more' : '');
+    const meta = [authStr && 'by ' + authStr, total + (total === 1 ? ' book' : ' books'), durStr].filter(Boolean).join(' \u00b7 ');
+
+    let h = existing;
+    if (!h) {
+      h = document.createElement('div');
+      h.id = 'nh-series-header';
+      h.innerHTML = '<div class="nh-sh-eyebrow">Series</div><h1></h1><div class="nh-sh-meta"></div><p class="nh-sh-desc"></p>';
+      bookshelf.parentNode.insertBefore(h, bookshelf);
+    }
+    const set = (sel, txt) => { const el = h.querySelector(sel); if (el && el.textContent !== txt) el.textContent = txt; };
+    set('h1', seriesName);
+    set('.nh-sh-meta', meta);
+    set('.nh-sh-desc', desc);
+    h.querySelector('.nh-sh-desc').style.display = desc ? '' : 'none';
+    bookshelf.classList.add('nh-with-series-header');
+    document.documentElement.style.setProperty('--nh-sh-h', h.offsetHeight + 'px');
+  }
+
   function runMutations() {
     const safe = (fn) => { try { fn(); } catch (e) { /* one failure must not block the rest */ } };
     safe(nhSeriesScale);
+    safe(nhSeriesHeader);
     safe(applySettings);
     safe(injectSettingsPanel);
     safe(sweepFooters);
