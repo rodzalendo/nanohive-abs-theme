@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.35.0  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.39.0  (injected build) */
 
 (function () {
   'use strict';
@@ -1428,15 +1428,6 @@
     const s = document.createElement('style');
     s.id = 'nh-recent-series-style';
     s.textContent = `
-      /* Series detail page header (nhSeriesHeader) */
-      #nh-series-header .nh-sh-eyebrow { font-family: var(--nh-sans, system-ui); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--nh-amber, #e0c27a); opacity: 0.9; }
-      #nh-series-header h1 { font-family: var(--nh-serif), Georgia, serif; font-size: 1.55rem; font-weight: 600; color: var(--nh-text-1, #f2ecdf); margin: 2px 0 4px; line-height: 1.15; }
-      #nh-series-header .nh-sh-meta { font-size: 0.85rem; color: var(--nh-muted-2, #9a9085); margin-bottom: 6px; }
-      #nh-series-header .nh-sh-desc { max-width: 72ch; font-size: 0.85rem; line-height: 1.5; color: var(--nh-text-2, #cfc6b8); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
-      @media (max-width: 640px) {
-        #nh-series-header h1 { font-size: 1.2rem; }
-        #nh-series-header .nh-sh-desc { -webkit-line-clamp: 2; }
-      }
       #nh-recent-series-row { margin: 0 0 2.2rem; box-sizing: border-box; width: 100%; }
       #nh-recent-series-row .nh-rs-heading { font-family: var(--nh-serif) !important; font-weight: 500; font-size: 1.55rem; letter-spacing: -0.01em; color: var(--nh-text-1, #f4eee2); margin: 0 0 1rem; }
       #nh-recent-series-row .nh-rs-scroll { display: flex; flex-wrap: nowrap; gap: calc(var(--nh-rs-cw, 140px) * 0.076); overflow-x: auto; overflow-y: hidden; padding: 6px 2px 14px; scrollbar-width: none; -ms-overflow-style: none; }
@@ -1618,6 +1609,18 @@
     }
   }
 
+  // Tag finished covers. Anchored on [id^="cover-area-"], the progressBar's real
+  // positioned ancestor — book cards on this build don't carry cy-id="card", which is
+  // why the previous card-anchored tagger matched nothing. bg-success is confirmed
+  // present on finished bars (user-supplied DOM), so the class check is sufficient
+  // and needs no Vue access (works from extensions too).
+  function nhTagFinished() {
+    document.querySelectorAll('[cy-id="progressBar"]').forEach((p) => {
+      const host = p.closest('[id^="cover-area-"]') || p.closest('[cy-id="card"]');
+      if (host) host.classList.toggle('nh-finished', p.classList.contains('bg-success'));
+    });
+  }
+
   // Series detail page header: series name, authors, count · duration, and the
   // description of book #1 (smallest whole sequence ≥ 1; 0.x novellas lose to real
   // entries; fractional beats none). Data read straight from the bookshelf vm's
@@ -1627,9 +1630,17 @@
     const bookshelf = document.getElementById('bookshelf');
     const existing = document.getElementById('nh-series-header');
     if (!onSeries || !bookshelf) {
-      if (existing) existing.remove();
-      if (bookshelf) bookshelf.classList.remove('nh-with-series-header');
+      if (existing) {
+        const par = existing.parentNode;
+        existing.remove();
+        if (par && par.classList) par.classList.remove('nh-series-cols');
+      }
+      if (bookshelf) {
+        bookshelf.classList.remove('nh-with-series-header');
+        if (bookshelf.parentNode && bookshelf.parentNode.classList) bookshelf.parentNode.classList.remove('nh-series-cols');
+      }
       document.documentElement.style.removeProperty('--nh-sh-h');
+      document.body.classList.remove('nh-series-page');
       return;
     }
     const vm = bookshelf.__vue__;
@@ -1661,28 +1672,288 @@
     const allLoaded = !vm.totalEntities || ents.length >= vm.totalEntities;
     const durStr = allLoaded && dur > 60 ? Math.floor(dur / 3600) + 'h ' + Math.round((dur % 3600) / 60) + 'm' : '';
     const authStr = authors.slice(0, 2).join(', ') + (authors.length > 2 ? ' & more' : '');
-    const meta = [authStr && 'by ' + authStr, total + (total === 1 ? ' book' : ' books'), durStr].filter(Boolean).join(' \u00b7 ');
+    const authorLine = authStr ? 'by ' + authStr : '';
+    const statsLine = [total + (total === 1 ? ' book' : ' books'), durStr].filter(Boolean).join(' · ');
 
     let h = existing;
     if (!h) {
       h = document.createElement('div');
       h.id = 'nh-series-header';
-      h.innerHTML = '<div class="nh-sh-eyebrow">Series</div><h1></h1><div class="nh-sh-meta"></div><p class="nh-sh-desc"></p>';
+      h.innerHTML = '<div class="nh-sh-eyebrow">Series</div><h1></h1><div class="nh-sh-author"></div><div class="nh-sh-stats"></div><p class="nh-sh-desc"></p>';
       bookshelf.parentNode.insertBefore(h, bookshelf);
     }
     const set = (sel, txt) => { const el = h.querySelector(sel); if (el && el.textContent !== txt) el.textContent = txt; };
     set('h1', seriesName);
-    set('.nh-sh-meta', meta);
+    set('.nh-sh-author', authorLine);
+    set('.nh-sh-stats', statsLine);
     set('.nh-sh-desc', desc);
     h.querySelector('.nh-sh-desc').style.display = desc ? '' : 'none';
     bookshelf.classList.add('nh-with-series-header');
+    document.body.classList.add('nh-series-page');
+    if (bookshelf.parentNode && bookshelf.parentNode.classList) bookshelf.parentNode.classList.add('nh-series-cols');
     document.documentElement.style.setProperty('--nh-sh-h', h.offsetHeight + 'px');
+
+    // Entering the two-column layout changes #bookshelf's width, but ABS only re-measures
+    // on real window resizes or settings changes — nudge one setCardSize + rebuild per route.
+    if (h.dataset.nudged !== location.pathname) {
+      h.dataset.nudged = location.pathname;
+      setTimeout(() => {
+        try {
+          const vm2 = bookshelf.__vue__;
+          if (vm2 && typeof vm2.setCardSize === 'function') {
+            Promise.resolve(vm2.setCardSize()).then(() => { if (typeof vm2.executeRebuild === 'function') vm2.executeRebuild(); }).catch(() => {});
+          }
+        } catch (e) {}
+      }, 80);
+    }
+  }
+
+  // ===================== EREADER CUSTOMIZATION =====================
+  // Extends ABS's epub reader (settings modal + rendition). Facts from ABS source:
+  // #viewer hosts the epub.js rendition (EpubReader.vue); ABS applies its colour theme
+  // via contents.addStylesheetRules and RE-APPLIES on every settings change, so our
+  // rules must land after — applyTheme is patched to chain our pass. Fonts are set via
+  // rendition.themes.font(), and the font files must be loaded INSIDE the iframe, so a
+  // content hook injects a Google Fonts stylesheet into each rendered chapter.
+  const NH_EREADER_FONTS = ['Merriweather', 'Lora', 'Literata', 'Bitter', 'EB Garamond', 'Crimson Pro', 'Vollkorn', 'Atkinson Hyperlegible', 'Inter', 'Nunito Sans'];
+  // ABS's own Dark/Sepia/Light are folded in as presets (its Theme row is hidden by the
+  // modal builder) so there is ONE colour control. They're implemented as overlay rules
+  // with the exact ABS colours, so the underlying ABS theme state never fights us.
+  // 'dark' is the neutral state and stores as '' (no overlay at all).
+  const NH_EREADER_PAGES = {
+    dark:     { label: 'Dark',     fg: '#ffffff', bg: function () { return '#232323'; } },
+    sepia:    { label: 'Sepia',    fg: '#5b4636', bg: function () { return '#f4ecd8'; } },
+    light:    { label: 'Light',    fg: '#000000', bg: function () { return '#ffffff'; } },
+    nanohive: { label: 'NanoHive', fg: '#e8e0d2', bg: function () { try { const v = getComputedStyle(document.documentElement).getPropertyValue('--nh-canvas').trim(); return v || '#181512'; } catch (e) { return '#181512'; } } },
+    black:    { label: 'Black',    fg: '#c9c2b6', bg: function () { return '#000000'; } },
+    paper:    { label: 'Paper',    fg: '#2e2a24', bg: function () { return '#f7f3ea'; } }
+  };
+
+  function nhEreaderGet(k) { try { return (JSON.parse(localStorage.getItem('nh-settings') || '{}') || {})[k] || ''; } catch (e) { return ''; } }
+  function nhEreaderSet(k, v) {
+    try {
+      const s = JSON.parse(localStorage.getItem('nh-settings') || '{}') || {};
+      s[k] = v; localStorage.setItem('nh-settings', JSON.stringify(s));
+    } catch (e) {}
+  }
+
+  function nhFindEpubVm() {
+    let el = document.getElementById('viewer');
+    while (el) { if (el.__vue__ && el.__vue__.rendition) return el.__vue__; el = el.parentElement; }
+    return null;
+  }
+
+  function nhEreaderEff() {
+    const preset = NH_EREADER_PAGES[nhEreaderGet('ereaderPage')];
+    return {
+      font: nhEreaderGet('ereaderFont'),
+      fg: nhEreaderGet('ereaderFg') || (preset ? preset.fg : ''),
+      bg: nhEreaderGet('ereaderBg') || (preset ? preset.bg() : '')
+    };
+  }
+
+  function nhDecorateContents(c) {
+    const eff = nhEreaderEff();
+    try { if (eff.font) c.addStylesheet('https://fonts.googleapis.com/css2?family=' + eff.font.replace(/ /g, '+') + ':ital,wght@0,400;0,700;1,400&display=swap'); } catch (e) {}
+    if (eff.fg || eff.bg) {
+      const all = {}, links = {};
+      if (eff.fg) { all.color = eff.fg + '!important'; links.color = eff.fg + '!important'; }
+      if (eff.bg) { all['background-color'] = eff.bg + '!important'; }
+      try { c.addStylesheetRules({ '*': all, a: links }); } catch (e) {}
+    }
+  }
+
+  // The reader shell (#reader) around the pages carries ABS's data-theme background;
+  // painted to match the effective page colour so the surround never mismatches.
+  function nhPaintShell() {
+    const r = document.getElementById('reader');
+    if (!r) return;
+    const eff = nhEreaderEff();
+    if (eff.bg) {
+      r.style.setProperty('background-color', eff.bg, 'important');
+      if (eff.fg) r.style.setProperty('color', eff.fg, 'important');
+    } else {
+      r.style.removeProperty('background-color');
+      r.style.removeProperty('color');
+    }
+  }
+
+  function nhApplyEreader() {
+    const vm = nhFindEpubVm();
+    if (!vm || !vm.rendition) return;
+    const rend = vm.rendition;
+    if (!rend.__nhHook) {
+      rend.__nhHook = true;
+      try { rend.hooks.content.register(function (c) { nhDecorateContents(c); }); } catch (e) {}
+    }
+    if (!vm.__nhPatched && typeof vm.applyTheme === 'function') {
+      vm.__nhPatched = true;
+      const orig = vm.applyTheme.bind(vm);
+      vm.applyTheme = function () { orig(); try { rend.getContents().forEach(nhDecorateContents); } catch (e) {} };
+    }
+    const eff = nhEreaderEff();
+    try {
+      if (eff.font) rend.themes.font('"' + eff.font + '", serif');
+      else if (vm.ereaderSettings && vm.ereaderSettings.font) rend.themes.font(vm.ereaderSettings.font);
+    } catch (e) {}
+    // ABS pass first (restores stock when everything is Default), ours chained after
+    try { vm.applyTheme(); } catch (e) {}
+    nhPaintShell();
+  }
+
+  function nhEreaderFontsLink() {
+    if (document.getElementById('nh-er-fonts')) return;
+    const l = document.createElement('link');
+    l.id = 'nh-er-fonts'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?' + NH_EREADER_FONTS.map(function (f) { return 'family=' + f.replace(/ /g, '+') + ':wght@400;600'; }).join('&') + '&display=swap';
+    document.head.appendChild(l);
+  }
+
+  const NH_ER_FG_SWATCHES = ['#ffffff', '#e8e0d2', '#c9c2b6', '#5b4636', '#2e2a24', '#000000'];
+  const NH_ER_BG_SWATCHES = ['#232323', '#181512', '#0b1618', '#000000', '#f4ecd8', '#f7f3ea', '#ffffff'];
+  const NH_ER_SAMPLE = 'The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs \u2014 0123456789. She said, \u201cReading should feel effortless.\u201d';
+
+  // Keeps the preview live against ABS's own sliders (scale, spacing, boldness) —
+  // called every mutation cycle, cheap no-op when the preview isn't on screen.
+  function nhEreaderPreviewSync() {
+    const prev = document.getElementById('nh-er-preview');
+    if (!prev) return;
+    const vm = nhFindEpubVm();
+    const s = (vm && vm.ereaderSettings) || {};
+    const eff = nhEreaderEff();
+    const fg = eff.fg || '#ffffff';
+    prev.style.fontFamily = eff.font ? '"' + eff.font + '", serif' : ((s.font === 'sans') ? 'ui-sans-serif, system-ui, sans-serif' : 'Georgia, serif');
+    prev.style.color = fg;
+    prev.style.background = eff.bg || '#232323';
+    const fs = (s.fontScale || 100) / 100;
+    const ls = (s.lineSpacing || 115) / 100;
+    const ts = (s.textStroke || 0) / 100;
+    prev.style.fontSize = (fs * 16) + 'px';
+    prev.style.lineHeight = (ls * fs) + 'rem';
+    prev.style.webkitTextStroke = ts + 'px ' + fg;
+    nhPaintShell();
+  }
+
+  function nhEreaderModal() {
+    const label = Array.prototype.find.call(document.querySelectorAll('p.text-lg'), function (p) { return p.textContent.trim() === 'Theme:'; });
+    if (!label) return;
+    const card = label.closest('div.bg-bg') || label.closest('.rounded-lg');
+    if (!card || card.dataset.nhExt) return;
+    card.dataset.nhExt = '1';
+    nhEreaderFontsLink();
+
+    // ABS's Theme row is superseded by our Page theme presets — one control, not two.
+    const absThemeRow = label.closest('.flex.items-center');
+    if (absThemeRow) absThemeRow.style.display = 'none';
+
+    const rebuild = function () {
+      delete card.dataset.nhExt;
+      const p0 = document.getElementById('nh-er-preview'); if (p0) p0.remove();
+      const s0 = card.querySelector('.nh-er'); if (s0) s0.remove();
+      nhEreaderModal();
+      nhApplyEreader();
+    };
+    const pick = function (key, val) { nhEreaderSet(key, val); rebuild(); };
+
+    // Live sample at the very top of the modal
+    const prev = document.createElement('div');
+    prev.id = 'nh-er-preview';
+    prev.className = 'nh-er-preview';
+    prev.innerHTML = '<span class="nh-er-aa">Aa</span>' + NH_ER_SAMPLE;
+    card.insertBefore(prev, card.firstChild);
+
+    const sec = document.createElement('div');
+    sec.className = 'nh-er';
+    sec.appendChild(Object.assign(document.createElement('div'), { className: 'nh-er-sep' }));
+    const title = document.createElement('p');
+    title.className = 'nh-er-title'; title.textContent = 'NanoHive';
+    sec.appendChild(title);
+
+    const row = function (labelText, ctlChildren) {
+      const r = document.createElement('div');
+      r.className = 'nh-er-row';
+      const lab = document.createElement('div');
+      lab.className = 'nh-er-lab';
+      lab.innerHTML = '<p class="text-lg">' + labelText + '</p>';
+      const ctl = document.createElement('div');
+      ctl.className = 'nh-er-ctl';
+      ctlChildren.forEach(function (ch) { ctl.appendChild(ch); });
+      r.appendChild(lab); r.appendChild(ctl);
+      return r;
+    };
+    const chip = function (text, sel, onClick, styler) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'nh-er-chip' + (sel ? ' sel' : '');
+      b.textContent = text;
+      if (styler) styler(b);
+      b.addEventListener('click', onClick);
+      return b;
+    };
+    const swatch = function (color, sel, onClick) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'nh-er-swatch' + (sel ? ' sel' : '');
+      b.style.background = color;
+      b.title = color;
+      b.addEventListener('click', onClick);
+      return b;
+    };
+    const colorInput = function (cur, onPick) {
+      const i = document.createElement('input');
+      i.type = 'color'; i.className = 'nh-er-color';
+      i.value = /^#[0-9a-f]{6}$/i.test(cur) ? cur : '#e0c27a';
+      i.addEventListener('change', function () { onPick(i.value); });
+      return i;
+    };
+
+    const curFont = nhEreaderGet('ereaderFont');
+    sec.appendChild(row('Typeface', [chip('Default', !curFont, function () { pick('ereaderFont', ''); })].concat(
+      NH_EREADER_FONTS.map(function (f) {
+        return chip(f, curFont === f, function () { pick('ereaderFont', f); }, function (b) { b.style.fontFamily = '"' + f + '", serif'; });
+      })
+    )));
+
+    const curPage = nhEreaderGet('ereaderPage');
+    const hasCustom = !!(nhEreaderGet('ereaderFg') || nhEreaderGet('ereaderBg'));
+    sec.appendChild(row('Page theme', Object.keys(NH_EREADER_PAGES).map(function (k) {
+      const p = NH_EREADER_PAGES[k];
+      const sel = !hasCustom && (curPage === k || (!curPage && k === 'dark'));
+      return chip(p.label, sel, function () {
+        nhEreaderSet('ereaderPage', k === 'dark' ? '' : k);
+        nhEreaderSet('ereaderFg', ''); nhEreaderSet('ereaderBg', '');
+        rebuild();
+      }, function (b) { b.classList.add('nh-er-tile'); b.style.background = p.bg(); b.style.color = p.fg; b.style.borderColor = 'rgba(255,255,255,0.35)'; });
+    })));
+
+    const curFg = nhEreaderGet('ereaderFg');
+    sec.appendChild(row('Text colour', [chip('Auto', !curFg, function () { pick('ereaderFg', ''); })].concat(
+      NH_ER_FG_SWATCHES.map(function (cc) { return swatch(cc, curFg.toLowerCase() === cc, function () { pick('ereaderFg', cc); }); }),
+      [colorInput(curFg, function (v) { pick('ereaderFg', v); })]
+    )));
+    const curBg = nhEreaderGet('ereaderBg');
+    sec.appendChild(row('Background', [chip('Auto', !curBg, function () { pick('ereaderBg', ''); })].concat(
+      NH_ER_BG_SWATCHES.map(function (cc) { return swatch(cc, curBg.toLowerCase() === cc, function () { pick('ereaderBg', cc); }); }),
+      [colorInput(curBg, function (v) { pick('ereaderBg', v); })]
+    )));
+
+    card.appendChild(sec);
+    nhEreaderPreviewSync();
+  }
+
+  function nhEreader() {
+    const vm = nhFindEpubVm();
+    if (vm && vm.rendition && !vm.rendition.__nhInit) { vm.rendition.__nhInit = true; nhApplyEreader(); }
+    nhEreaderModal();
   }
 
   function runMutations() {
     const safe = (fn) => { try { fn(); } catch (e) { /* one failure must not block the rest */ } };
     safe(nhSeriesScale);
     safe(nhSeriesHeader);
+    safe(nhTagFinished);
+    safe(nhEreader);
+    safe(nhEreaderPreviewSync);
     safe(applySettings);
     safe(injectSettingsPanel);
     safe(sweepFooters);

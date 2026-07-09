@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.27.55  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.27.61  (injected build) */
 
 (function () {
   'use strict';
@@ -302,18 +302,18 @@ div.fixed.right-4.z-50 > div span.material-symbols:hover { color: var(--nh-amber
 [cy-id="subtitle"], [cy-id="line2"], [cy-id="line3"] { color: var(--nh-muted-2) !important; }
 [cy-id="progressBar"] { box-shadow: none !important; }
 
-/* Finished books on shelves: the 100%-width success bar carries no information, so hide
-   it and mark the card with a small check badge (mirrors the detail-page read toggle).
-   Bars are colour-variant (in-progress bg-yellow-400, finished bg-success) — target by
-   position classes to catch the finished one only. */
-[cy-id="card"][id^="book-card-"] .absolute.bottom-0.left-0.h-1\\.5.bg-success { display: none !important; }
-[cy-id="card"][id^="book-card-"]:has(.absolute.bottom-0.left-0.h-1\\.5.bg-success)::after {
-  content: '✓'; position: absolute; top: 0.375em; right: 0.375em; z-index: 6;
-  width: 1.55em; height: 1.55em; display: flex; align-items: center; justify-content: center;
+/* Finished books on shelves: the 100%-width bar carries no information, so hide it and
+   mark the card with a small check badge (mirrors the detail-page read toggle).
+   Cards are tagged .nh-finished by nhTagFinished() in enhancements.js, which inspects
+   [cy-id="progressBar"] directly — resilient to ABS class-chain changes (h-1e vs h-1.5). */
+[id^="cover-area-"].nh-finished [cy-id="progressBar"], [cy-id="card"].nh-finished [cy-id="progressBar"] { display: none !important; }
+[id^="cover-area-"].nh-finished::after, [cy-id="card"].nh-finished::after {
+  content: '✓'; position: absolute; bottom: 0.375em; left: 0.375em; z-index: 30;
+  width: 1.35em; height: 1.35em; display: flex; align-items: center; justify-content: center;
   border-radius: 50%; background: rgba(16,13,10,0.72); color: var(--nh-amber);
   border: 1px solid rgba(255,255,255,0.22);
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-  font-weight: 700; font-size: 0.85em; line-height: 1;
+  font-weight: 700; font-size: 0.78em; line-height: 1;
   box-shadow: 0 2px 8px rgba(0,0,0,0.45);
 }
 .bookshelf-row h2 { font-family: var(--nh-serif) !important; font-weight: 500 !important; font-size: 1.55rem !important; letter-spacing: -0.01em; color: var(--nh-text-1) !important; }
@@ -366,17 +366,23 @@ div.fixed.right-4.z-50 > div span.material-symbols:hover { color: var(--nh-amber
 #item-page-wrapper a.nh-goodreads-btn img { width: 26px !important; height: 26px !important; border-radius: 6px !important; display: block !important; }
 
 /* ============ OVERRIDING DETAILS PAGE TYPOGRAPHY & BUTTONS ============ */
+/* Read button (ebook attached, bg-info) matches the Play button */
+body #page-wrapper #item-page-wrapper button.abs-btn.bg-info,
 body #page-wrapper #item-page-wrapper button.abs-btn.bg-success,
 body #page-wrapper #item-page-wrapper button[aria-label="Play"].bg-success {
     background-color: var(--nh-amber) !important; color: #14110d !important;
     border-color: transparent !important; box-shadow: 0 8px 20px var(--nh-amber-shadow) !important; transition: all 0.2s !important;
 }
+body #page-wrapper #item-page-wrapper button.abs-btn.bg-info:hover,
 body #page-wrapper #item-page-wrapper button.abs-btn.bg-success:hover {
     box-shadow: 0 10px 24px var(--nh-amber-shadow) !important; transform: translateY(-1px) !important;
 }
+body #page-wrapper #item-page-wrapper button.abs-btn.bg-info * { color: #14110d !important; }
 body #page-wrapper #item-page-wrapper button.abs-btn.bg-success * { color: #14110d !important; }
 
 /* Kill the ABS corner artifacts on 'Playing' button hover states */
+body #page-wrapper #item-page-wrapper button.abs-btn.bg-info::before,
+body #page-wrapper #item-page-wrapper button.abs-btn.bg-info::after,
 body #page-wrapper #item-page-wrapper button.abs-btn.bg-success::before,
 body #page-wrapper #item-page-wrapper button.abs-btn.bg-success::after { display: none !important; }
 body #page-wrapper #item-page-wrapper .w-full.my-2.mt-6 .abs-btn::before { border-radius: 8px !important; }
@@ -403,6 +409,23 @@ body.nh-cinematic, body.nh-cinematic #__nuxt, body.nh-cinematic #__layout, body.
 
 /* Settings pages: let the cinematic background show through (cards keep their own surface) */
 body.nh-cinematic .configContent, body.nh-cinematic .configContent > *:not(.bg-bg):not([class*="rounded"]) { background-color: transparent !important; background-image: none !important; }
+
+/* ============ EREADER SETTINGS EXTENSION (nhEreaderModal) ============ */
+.nh-er-sep { height: 1px; background: rgba(255,255,255,0.12); margin: 18px 0 14px; }
+.nh-er-title { font-family: var(--nh-serif), Georgia, serif; color: var(--nh-amber, #e0c27a); font-size: 1.05rem; letter-spacing: 0.04em; margin: 0 0 12px; }
+.nh-er-preview { border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 12px 16px; margin: 0 0 16px; line-height: 1.5; }
+.nh-er-preview .nh-er-aa { font-size: 1.6rem; font-weight: 600; margin-right: 12px; vertical-align: -2px; }
+.nh-er-row { display: flex; align-items: flex-start; margin-bottom: 14px; }
+.nh-er-row .nh-er-lab { width: 10rem; flex: 0 0 10rem; padding-top: 5px; }
+.nh-er-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+.nh-er-chip { border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 5px 12px; background: rgba(255,255,255,0.04); cursor: pointer; font-size: 0.9rem; color: var(--nh-text-2, #ddd); line-height: 1.3; }
+.nh-er-chip:hover { background: rgba(255,255,255,0.1); }
+.nh-er-chip.sel { border-color: var(--nh-amber, #e0c27a); color: var(--nh-amber, #e0c27a); box-shadow: 0 0 0 1px var(--nh-amber, #e0c27a); }
+.nh-er-tile { min-width: 86px; text-align: center; }
+.nh-er-tile.sel { color: inherit; }
+.nh-er-swatch { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); cursor: pointer; padding: 0; flex: 0 0 auto; }
+.nh-er-swatch.sel { box-shadow: 0 0 0 2px var(--nh-amber, #e0c27a); }
+input.nh-er-color { width: 36px; height: 26px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; background: transparent; padding: 0 2px; cursor: pointer; }
 
 /* ============ MODALS & TABLES ============ */
 .modal.modal-bg { background-color: rgba(14,11,7,0.55) !important; backdrop-filter: blur(2px) !important; -webkit-backdrop-filter: blur(2px) !important; }
@@ -536,13 +559,42 @@ button.bg-success, button.bg-success *, a.bg-success, a.bg-success *, .abs-btn.b
     #nh-hero-nav .nh-nav-arrow { width: 30px !important; height: 30px !important; }
 }
 
-/* Series-page header (built by enhancements.js). The header sibling above #bookshelf
-   takes over the appbar/toolbar clearance, and the bookshelf gives up that height so
-   the 100% chain still sums exactly (no lip, no clipped bottom). Specificity must beat
-   body.nh-has-toolbar #bookshelf, hence the body prefix; placed last by source order. */
+/* Series-page header (built by enhancements.js). All header styling lives HERE, not in
+   the recent-series style block — that one is only injected on the home page, so a direct
+   series-page load rendered the header unstyled.
+   Mobile/stacked: header above #bookshelf, takes over appbar/toolbar clearance, bookshelf
+   gives up that height so the 100% chain still sums. Desktop: two columns, details left. */
 body #nh-series-header { padding: 87px 26px 10px; }
 body.nh-has-toolbar #nh-series-header { padding-top: 127px; }
-body #bookshelf.nh-with-series-header { padding-top: 12px !important; height: calc(100% - var(--nh-sh-h, 0px)) !important; }
+#nh-series-header .nh-sh-eyebrow { font-family: var(--nh-sans, system-ui); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--nh-amber, #e0c27a); opacity: 0.9; }
+#nh-series-header h1 { font-family: var(--nh-serif), Georgia, serif; font-size: 1.6rem; font-weight: 600; color: var(--nh-text-1, #f2ecdf); margin: 4px 0 8px; line-height: 1.12; }
+#nh-series-header .nh-sh-author { font-family: var(--nh-serif), Georgia, serif; font-size: 1.05rem; color: var(--nh-amber, #e0c27a); margin: 0 0 2px; }
+#nh-series-header .nh-sh-stats { font-family: var(--nh-sans, system-ui); font-size: 0.92rem; color: var(--nh-muted-2, #9a9085); margin: 0 0 12px; }
+#nh-series-header .nh-sh-desc { font-size: 0.88rem; line-height: 1.55; color: var(--nh-text-2, #cfc6b8); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+@media (max-width: 1023.98px) {
+  body #bookshelf.nh-with-series-header { padding-top: 12px !important; height: calc(100% - var(--nh-sh-h, 0px)) !important; }
+}
+@media (max-width: 640px) {
+  #nh-series-header h1 { font-size: 1.25rem; }
+  #nh-series-header .nh-sh-desc { -webkit-line-clamp: 2; }
+}
+/* Series page toolbar: fully transparent, name + count hidden, kebab kept.
+   Scoped to body.nh-series-page (set by nhSeriesHeader) so library/collection
+   toolbars keep their filter and sort controls untouched. */
+body.nh-series-page #toolbar { background: transparent !important; border: none !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.nh-series-page *:has(> #toolbar) { background: transparent !important; border: none !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.nh-series-page #toolbar > p { display: none !important; }
+body.nh-series-page #toolbar > div.w-6.h-6.rounded-full { display: none !important; }
+
+@media (min-width: 1024px) {
+  body .nh-series-cols { display: flex !important; align-items: stretch !important; }
+  body #nh-series-header { flex: 0 0 34%; width: 34%; max-width: 520px; height: 100%; overflow-y: auto; padding: 127px 16px 32px 34px; box-sizing: border-box; }
+  body #bookshelf.nh-with-series-header { height: 100% !important; flex: 1 1 auto; min-width: 0; padding-left: 0 !important; }
+  #nh-series-header h1 { font-size: 2.2rem; }
+  #nh-series-header .nh-sh-author { font-size: 1.25rem; }
+  #nh-series-header .nh-sh-stats { font-size: 1.05rem; }
+  #nh-series-header .nh-sh-desc { -webkit-line-clamp: 12; font-size: 0.95rem; max-width: 62ch; }
+}
 `;
 
   const style = document.createElement('style');
