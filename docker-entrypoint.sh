@@ -18,12 +18,19 @@ case "$NH_APP_NAME$NH_LOGO_URL" in
     ;;
 esac
 
-for var in NH_SHOW_LOGO_TEXT NH_COLORIZE_LOGO NH_SHOW_RECENT_SERIES; do
+for var in NH_SHOW_LOGO_TEXT NH_COLORIZE_LOGO NH_SHOW_RECENT_SERIES NH_CUSTOM_SERIES_CARDS NH_SHOW_HERO_CAROUSEL; do
   eval "val=\$$var"
   case "$val" in
     true|false) ;;
     *) echo "ERROR: $var must be exactly 'true' or 'false' (got '$val')" >&2; exit 1 ;;
   esac
 done
+
+# UI-saved server defaults live here; mount a volume at /data/nh to keep them
+# across container recreations. Seed an empty config so the SSI include in the
+# page head always yields valid JS.
+mkdir -p /data/nh
+[ -f /data/nh/server-config.json ] || printf '{}' > /data/nh/server-config.json
+chown -R nginx:nginx /data/nh
 
 echo "[nanohive-abs-theme] upstream=${ABS_UPSTREAM} version=${THEME_VERSION:-latest} theme=${NH_BASE_THEME} accent=${NH_ACCENT_COLOR}"

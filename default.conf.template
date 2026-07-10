@@ -23,6 +23,33 @@ server {
         access_log off;
     }
 
+    # UI-saved server defaults. GET is public: it is the same config every visitor
+    # receives via the SSI include above, so there is nothing to protect.
+    location = /_nh/server-config.json {
+        alias /data/nh/server-config.json;
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        access_log off;
+    }
+
+    # Admin-only write path. The browser PUTs JSON here with the caller's ABS
+    # bearer token; auth_request replays it against an admin-only ABS endpoint
+    # (/api/users answers 200 only for admins). DAV then writes the file.
+    location /_nh/data/ {
+        auth_request /_nh/admincheck;
+        client_max_body_size 64k;
+        dav_methods PUT;
+        alias /data/nh/;
+    }
+
+    location = /_nh/admincheck {
+        internal;
+        proxy_pass ${ABS_UPSTREAM}/api/users;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Authorization $http_authorization;
+    }
+
     location / {
         proxy_pass ${ABS_UPSTREAM};
 
@@ -50,7 +77,7 @@ server {
         # window.NH_CONFIG carries the operator's defaults and must be defined before
         # nh-early.js reads it. core.js patches fetch/XHR, so it runs before the ABS bundle.
         sub_filter '</head>'
-            '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><style id="nh-fouc-blocker">html{background:${NH_FOUC_BG} !important;}html:not(.nh-ready) body{opacity:0 !important;}html.nh-ready body{opacity:1;transition:opacity .25s ease;}</style><script>setTimeout(function(){document.documentElement.classList.add("nh-ready");},4000);</script><script>window.NH_CONFIG={"appName":"${NH_APP_NAME}","showLogoText":${NH_SHOW_LOGO_TEXT},"colorizeLogo":${NH_COLORIZE_LOGO},"logoUrl":"${NH_LOGO_URL}","accentColor":"${NH_ACCENT_COLOR}","baseTheme":"${NH_BASE_THEME}","mainFont":"${NH_MAIN_FONT}","fontScale":${NH_FONT_SCALE},"carouselTiming":${NH_CAROUSEL_TIMING},"showCustomRecentSeries":${NH_SHOW_RECENT_SERIES},"recentSeriesCount":${NH_RECENT_SERIES_COUNT}};</script><script><!--# include virtual="/_nh/core.js" --></script><script><!--# include virtual="/_nh/nh-early.js" --></script><script>document.documentElement.classList.add("nh-ready");</script></head>';
+            '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><style id="nh-fouc-blocker">html{background:${NH_FOUC_BG} !important;}html:not(.nh-ready) body{opacity:0 !important;}html.nh-ready body{opacity:1;transition:opacity .25s ease;}</style><script>setTimeout(function(){document.documentElement.classList.add("nh-ready");},4000);</script><script>window.NH_CONFIG={"appName":"${NH_APP_NAME}","showLogoText":${NH_SHOW_LOGO_TEXT},"colorizeLogo":${NH_COLORIZE_LOGO},"logoUrl":"${NH_LOGO_URL}","accentColor":"${NH_ACCENT_COLOR}","baseTheme":"${NH_BASE_THEME}","mainFont":"${NH_MAIN_FONT}","fontScale":${NH_FONT_SCALE},"carouselTiming":${NH_CAROUSEL_TIMING},"showCustomRecentSeries":${NH_SHOW_RECENT_SERIES},"recentSeriesCount":${NH_RECENT_SERIES_COUNT},"customSeriesCards":${NH_CUSTOM_SERIES_CARDS},"showHeroCarousel":${NH_SHOW_HERO_CAROUSEL}};</script><script>window.NH_SERVER_CONFIG=<!--# include virtual="/_nh/server-config.json" -->;</script><script><!--# include virtual="/_nh/core.js" --></script><script><!--# include virtual="/_nh/nh-early.js" --></script><script>document.documentElement.classList.add("nh-ready");</script></head>';
 
         sub_filter '</body>'
             '<script><!--# include virtual="/_nh/enhancements.js" --></script><script><!--# include virtual="/_nh/book-details.js" --></script></body>';

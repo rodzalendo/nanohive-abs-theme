@@ -24,7 +24,16 @@ through the proxy, they just won't be themed.
 - A real mobile layout: drawer navigation, touch-friendly appbar, no horizontal overflow
 - An in-app settings panel (gear icon) where **each user** picks their own theme, font,
   accent, and which shelves and sidebar entries to show
-- An expanded "Recent Series" shelf (ABS's native one is capped at 5 items)
+- **Server-wide defaults saved from the UI** (admins): one click stores your current look
+  as the default for every user — no compose editing, survives updates via a small volume
+- An expanded "Recent Series" shelf (ABS's native one is capped at 5 items), with an
+  optional stock-ABS series look if you prefer it
+- An extended ereader: your theme colours by default, a typeface picker with curated
+  serif / sans-serif / dyslexia-friendly (OpenDyslexic) fonts, floating player fixes
+- Ebooks in progress can join the hero carousel (default), stay a separate shelf, or be
+  hidden — per-user choice in the customization panel
+- Covers follow your library's aspect setting everywhere, including the details page
+- Panel and carousel fully translated into all 40 languages ABS ships
 
 
 ## Run it
@@ -32,6 +41,7 @@ through the proxy, they just won't be themed.
 ```bash
 docker run -d \
   -p 8080:80 \
+  -v nh_theme_data:/data/nh \
   -e ABS_UPSTREAM=http://your-abs-host:80 \
   ghcr.io/rodzalendo/nanohive-abs-theme:latest
 ```
@@ -47,7 +57,8 @@ theme container on the old one, so existing bookmarks keep working.
 Only `ABS_UPSTREAM` is required. The `NH_*` variables set the **defaults a user sees on
 their first visit**; anyone can then override them for themselves in the settings panel.
 
-Precedence: **a user's saved settings** beat **your env vars** beat the built-in defaults.
+Precedence: **a user's saved settings** beat **UI-saved server defaults** beat **your env
+vars** beat the built-in defaults.
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -63,19 +74,34 @@ Precedence: **a user's saved settings** beat **your env vars** beat the built-in
 | `NH_CAROUSEL_TIMING` | `15` | Seconds per hero slide; `0` disables auto-advance |
 | `NH_SHOW_RECENT_SERIES` | `true` | The expanded Recent Series shelf. `true`/`false` only |
 | `NH_RECENT_SERIES_COUNT` | `12` | Series shown in that shelf |
+| `NH_CUSTOM_SERIES_CARDS` | `true` | Stacked series covers; `false` = stock ABS series cards (keeps font + count badge) |
+| `NH_SHOW_HERO_CAROUSEL` | `true` | The home hero carousel. `true`/`false` only |
 | `NH_FOUC_BG` | `#181512` | Background painted before the theme loads. Match your base theme's canvas |
 | `THEME_VERSION` | *(build stamp)* | Informational; printed at startup |
 
 The container refuses to start on a malformed value (a non-boolean where a boolean is
 required, or a quote in `NH_APP_NAME`) rather than serving a half-broken page.
 
+### Server defaults from the UI (recommended)
+
+Admins get a **Server Defaults** card at the bottom of Settings → Theme. *Save* stores your
+current settings on the proxy as the default for every user; *Clear* removes them (and
+resets your own browser). Writes are admin-only: the proxy replays your ABS login token
+against an admin-only ABS endpoint before accepting the request.
+
+The file lives at `/data/nh/server-config.json` inside the container — **mount a volume
+there** (see the run command above) or it resets when the container is recreated.
+
 ### Where settings live
 
-There are two layers, and they never touch your Audiobookshelf database.
+There are three layers, and they never touch your Audiobookshelf database.
 
 **Your defaults** are the `NH_*` environment variables. nginx reads them at container start
 and injects them into every page as a `window.NH_CONFIG` object. Change one, restart the
 container, and every user who hasn't customised that particular option sees the new value.
+
+**UI-saved server defaults** sit above the env vars: the Server Defaults card writes them
+to the proxy's `/data/nh` volume and nginx injects them into every page before first paint.
 
 **Each user's overrides** are written to their browser's `localStorage` under the key
 `nh-settings`, as JSON, the moment they change something in the settings panel. This is

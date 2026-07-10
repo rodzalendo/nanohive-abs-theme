@@ -15,6 +15,9 @@ services:
       - audiobookshelf
     ports:
       - "8080:80"
+    volumes:
+      # UI-saved server defaults (Settings -> Theme -> Server Defaults) persist here.
+      - nh_theme_data:/data/nh
     environment:
       ABS_UPSTREAM: "http://audiobookshelf:80"
 
@@ -28,6 +31,8 @@ services:
       # NH_FONT_SCALE: "1.0"
       # NH_CAROUSEL_TIMING: "15"     # seconds per hero slide; 0 disables auto-advance
       # NH_RECENT_SERIES_COUNT: "12"
+      # NH_CUSTOM_SERIES_CARDS: "true"  # false = stock ABS series cards
+      # NH_SHOW_HERO_CAROUSEL: "true"
       #
       # If you pick a base theme other than `warm`, set NH_FOUC_BG to its canvas
       # colour so the pre-paint background matches (see README).
@@ -35,3 +40,6 @@ services:
 
 # Then point your browser / Cloudflare tunnel / reverse proxy at
 # the abs-theme container (port 8080) instead of ABS directly.
+
+volumes:
+  nh_theme_data:

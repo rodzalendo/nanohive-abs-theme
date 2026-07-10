@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.39.0  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.58.0  (injected build) */
 
 (function () {
   'use strict';
@@ -46,15 +46,22 @@
     hideHomeDiscover: false,
     hideHomeNewAuthors: false,
     showCustomRecentSeries: true,
-    recentSeriesCount: 12
+    recentSeriesCount: 12,
+    customSeriesCards: true,
+    showHeroCarousel: true,
+    continueReadingMode: 'combine'
   };
 
   const serverSettings = (window.NH_CONFIG && typeof window.NH_CONFIG === 'object') ? window.NH_CONFIG : {};
+  // UI-saved server defaults (see the Server Defaults card): sit between env vars
+  // and the user's own saved settings.
+  const uiServerSettings = (window.NH_SERVER_CONFIG && typeof window.NH_SERVER_CONFIG === 'object') ? window.NH_SERVER_CONFIG : {};
 
-  let nhSettings = { ...defaultSettings, ...serverSettings };
+  let nhLastCrMode;
+  let nhSettings = { ...defaultSettings, ...serverSettings, ...uiServerSettings };
   try {
     const saved = localStorage.getItem('nh-settings');
-    if (saved) nhSettings = { ...defaultSettings, ...serverSettings, ...JSON.parse(saved) };
+    if (saved) nhSettings = { ...defaultSettings, ...serverSettings, ...uiServerSettings, ...JSON.parse(saved) };
   } catch (e) {}
 
   const baseThemes = {
@@ -121,7 +128,30 @@
         }
       `;
 
-      if (!nhSettings.showLogoText) css += `#appbar h1 { display: none !important; } `;
+      if (nhLastCrMode === undefined) nhLastCrMode = nhSettings.continueReadingMode;
+      if (nhLastCrMode !== nhSettings.continueReadingMode) {
+        nhLastCrMode = nhSettings.continueReadingMode;
+        const hc = document.getElementById('nh-hero-container');
+        if (hc) hc.remove();
+        document.querySelectorAll('.bookshelf-row[data-hero-injected="true"]').forEach(function (r) {
+          r.style.display = '';
+          Array.from(r.children).forEach(function (c) { if (c.id !== 'nh-hero-container') c.style.display = ''; });
+          delete r.dataset.heroInjected;
+        });
+      }
+
+      const nhStock = nhSettings.customSeriesCards === false;
+      if (document.documentElement.classList.contains('nh-stock-series') !== nhStock) {
+        document.documentElement.classList.toggle('nh-stock-series', nhStock);
+        // ABS measured its dummy card under the other mode's CSS; re-measure now.
+        const bs = document.getElementById('bookshelf');
+        const bvm = bs && bs.__vue__;
+        if (bvm && typeof bvm.setCardSize === 'function') {
+          Promise.resolve(bvm.setCardSize()).then(function () { if (typeof bvm.executeRebuild === 'function') bvm.executeRebuild(); }).catch(function () {});
+        }
+      }
+
+      if (!nhSettings.showLogoText) css += `#appbar h1 { display: none !important; } #page-wrapper img[alt="Audiobookshelf Logo"] + h1 { display: none !important; } `;
       if (nhSettings.hideRailSeries) css += `[aria-label="Library Sidebar"] a[href$="/bookshelf/series"] { display: none !important; } `;
       if (nhSettings.hideRailCollections) css += `[aria-label="Library Sidebar"] a[href$="/bookshelf/collections"] { display: none !important; } `;
       if (nhSettings.hideRailAuthors) css += `[aria-label="Library Sidebar"] a[href$="/bookshelf/authors"] { display: none !important; } `;
@@ -129,8 +159,9 @@
       if (nhSettings.hideRailStats) css += `[aria-label="Library Sidebar"] a[href$="/stats"] { display: none !important; } `;
 
       // CSS-only Logo Colorization via Safe DOM Insertion
-      const img = document.querySelector('#appbar a[href$="/"] img');
-      if (img) {
+      // Appbar logo + the login page header (no #appbar there; anchored on its alt text)
+      const logoImgs = document.querySelectorAll('#appbar a[href$="/"] img, #page-wrapper img[alt="Audiobookshelf Logo"]');
+      logoImgs.forEach(function (img) {
         if (!img.dataset.origSrc) img.dataset.origSrc = img.getAttribute('src');
         const targetSrc = nhSettings.logoUrl || img.dataset.origSrc;
         document.documentElement.style.setProperty('--nh-logo-url', `url("${targetSrc}")`);
@@ -144,7 +175,7 @@
             img.setAttribute('src', targetSrc);
           }
         }
-      }
+      });
 
       if (style.textContent !== css) style.textContent = css;
 
@@ -160,10 +191,9 @@
         if (customFontLink.href !== fontUrl) customFontLink.href = fontUrl;
       }
 
-      const brand = document.querySelector('#appbar a[href$="/"] h1');
-      if (brand) {
+      document.querySelectorAll('#appbar a[href$="/"] h1, #page-wrapper img[alt="Audiobookshelf Logo"] + h1').forEach(function (brand) {
         brand.textContent = nhSettings.appName || 'audiobookshelf';
-      }
+      });
 
       const shelves = Array.from(document.querySelectorAll('.bookshelf-row'));
       shelves.forEach(row => {
@@ -173,7 +203,7 @@
 
         let hide = false;
         if (nhSettings.hideHomeRecentlyAdded && (title.includes('recently added') || title.includes('ostatnio dodane') || title.includes('niedawno dodane'))) hide = true;
-        if ((nhSettings.hideHomeRecentSeries || nhSettings.showCustomRecentSeries) && (title.includes('recent series') || title.includes('ostatnie serie') || title.includes('najnowsze serie'))) hide = true;
+        if ((nhSettings.hideHomeRecentSeries || (nhSettings.showCustomRecentSeries && nhSettings.customSeriesCards !== false)) && (title.includes('recent series') || title.includes('ostatnie serie') || title.includes('najnowsze serie'))) hide = true;
         if (nhSettings.hideHomeContinueSeries && (title.includes('continue series') || title.includes('kontynuuj seri'))) hide = true;
         if (nhSettings.hideHomeListenAgain && (title.includes('listen again') || title.includes('słuchaj ponownie'))) hide = true;
         if (nhSettings.hideHomeDiscover && (title.includes('discover') || title.includes('odkry'))) hide = true;
@@ -282,48 +312,46 @@
   }
 
   const PANEL_T = {
-    en: {
-      title: 'Theme Customizations', subtitle: 'Personalise the look of your library. Changes save automatically.',
-      branding: 'Branding & Style', colour: 'Colour & Theme', homeCar: 'Home & Carousel', sidebar: 'Sidebar Menus',
-      appName: 'App Name', appNameHint: 'Leave empty for the default name.',
-      logoUrl: 'Custom Logo URL', logoHint: 'Leave empty for the default logo.',
-      accent: 'Accent Colour', baseTheme: 'Base Theme', mainFont: 'Main Font',
-      carousel: 'Carousel Auto-Advance', carouselHint: 'Seconds between slides. Set to 0 to disable.',
-      customSeries: 'Expanded Recent Series', seriesCount: 'Recent Series Count', seriesCountHint: 'How many series to show in the expanded shelf.',
-      hideShelves: 'Hide Homepage Shelves', sidebarHint: "Hide left-rail entries you don't use.",
-      showAppName: 'Show App Name Text', colorizeLogo: 'Colorize Logo with Accent Colour',
-      hideSeries: 'Hide Series', hideCollections: 'Hide Collections', hideAuthors: 'Hide Authors', hideNarrators: 'Hide Narrators', hideStats: 'Hide Stats',
-      hideRecentlyAdded: 'Hide Recently Added', hideRecentSeries: 'Hide Recent Series', hideContinueSeries: 'Hide Continue Series', hideListenAgain: 'Hide Listen Again', hideDiscover: 'Hide Discover', hideNewestAuthors: 'Hide Newest Authors',
-      gearLabel: 'Theme'
-    },
-    pl: {
-      title: 'Personalizacja motywu', subtitle: 'Dostosuj wygląd swojej biblioteki. Zmiany zapisują się automatycznie.',
-      branding: 'Marka i styl', colour: 'Kolor i motyw', homeCar: 'Strona główna i karuzela', sidebar: 'Menu boczne',
-      appName: 'Nazwa aplikacji', appNameHint: 'Pozostaw puste, aby użyć domyślnej nazwy.',
-      logoUrl: 'Własny adres URL logo', logoHint: 'Pozostaw puste, aby użyć domyślnego logo.',
-      accent: 'Kolor akcentu', baseTheme: 'Motyw podstawowy', mainFont: 'Główna czcionka',
-      carousel: 'Automatyczne przewijanie karuzeli', carouselHint: 'Sekundy między slajdami. Ustaw 0, aby wyłączyć.',
-      customSeries: 'Rozszerzone ostatnie serie', seriesCount: 'Liczba ostatnich serii', seriesCountHint: 'Ile serii pokazać na rozszerzonej półce.',
-      hideShelves: 'Ukryj półki strony głównej', sidebarHint: 'Ukryj nieużywane pozycje menu bocznego.',
-      showAppName: 'Pokaż nazwę aplikacji', colorizeLogo: 'Pokoloruj logo kolorem akcentu',
-      hideSeries: 'Ukryj Serie', hideCollections: 'Ukryj Kolekcje', hideAuthors: 'Ukryj Autorów', hideNarrators: 'Ukryj Lektorów', hideStats: 'Ukryj Statystyki',
-      hideRecentlyAdded: 'Ukryj Ostatnio dodane', hideRecentSeries: 'Ukryj Ostatnie serie', hideContinueSeries: 'Ukryj Kontynuuj serię', hideListenAgain: 'Ukryj Słuchaj ponownie', hideDiscover: 'Ukryj Odkrywaj', hideNewestAuthors: 'Ukryj Najnowszych autorów',
-      gearLabel: 'Motyw'
-    },
-    de: {
-      title: 'Anpassungen', subtitle: 'Passe das Aussehen deiner Bibliothek an. Änderungen werden automatisch gespeichert.',
-      branding: 'Marke & Stil', colour: 'Farbe & Thema', homeCar: 'Startseite & Karussell', sidebar: 'Seitenleisten-Menüs',
-      appName: 'App-Name', appNameHint: 'Leer lassen für den Standardnamen.',
-      logoUrl: 'Eigene Logo-URL', logoHint: 'Leer lassen für das Standardlogo.',
-      accent: 'Akzentfarbe', baseTheme: 'Basisthema', mainFont: 'Hauptschriftart',
-      carousel: 'Karussell Auto-Vorlauf', carouselHint: 'Sekunden zwischen Folien. 0 zum Deaktivieren.',
-      customSeries: 'Erweiterte neue Serien', seriesCount: 'Anzahl neuer Serien', seriesCountHint: 'Wie viele Serien im erweiterten Regal angezeigt werden.',
-      hideShelves: 'Startseiten-Regale ausblenden', sidebarHint: 'Nicht genutzte Einträge ausblenden.',
-      showAppName: 'App-Namen anzeigen', colorizeLogo: 'Logo mit Akzentfarbe einfärben',
-      hideSeries: 'Serien ausblenden', hideCollections: 'Sammlungen ausblenden', hideAuthors: 'Autoren ausblenden', hideNarrators: 'Sprecher ausblenden', hideStats: 'Statistiken ausblenden',
-      hideRecentlyAdded: 'Kürzlich hinzugefügt ausblenden', hideRecentSeries: 'Neue Serien ausblenden', hideContinueSeries: 'Serie fortsetzen ausblenden', hideListenAgain: 'Erneut hören ausblenden', hideDiscover: 'Entdecken ausblenden', hideNewestAuthors: 'Neueste Autoren ausblenden',
-      gearLabel: 'Design'
-    }
+    en: {"title": "Theme Customizations", "subtitle": "Personalise the look of your library. Changes save automatically.", "branding": "Branding & Style", "colour": "Colour & Theme", "homeCar": "Home & Carousel", "sidebar": "Sidebar Menus", "appName": "App Name", "appNameHint": "Leave empty for the default name.", "logoUrl": "Custom Logo URL", "logoHint": "Leave empty for the default logo.", "accent": "Accent Colour", "baseTheme": "Base Theme", "mainFont": "Main Font", "carousel": "Carousel Auto-Advance", "carouselHint": "Seconds between slides. Set to 0 to disable.", "customSeries": "Expanded Recent Series", "seriesCount": "Recent Series Count", "seriesCountHint": "How many series to show in the expanded shelf.", "hideShelves": "Hide Homepage Shelves", "sidebarHint": "Hide left-rail entries you don't use.", "showAppName": "Show App Name Text", "colorizeLogo": "Colorize Logo with Accent Colour", "hideSeries": "Hide Series", "hideCollections": "Hide Collections", "hideAuthors": "Hide Authors", "hideNarrators": "Hide Narrators", "hideStats": "Hide Stats", "hideRecentlyAdded": "Hide Recently Added", "hideRecentSeries": "Hide Recent Series", "hideContinueSeries": "Hide Continue Series", "hideListenAgain": "Hide Listen Again", "hideDiscover": "Hide Discover", "hideNewestAuthors": "Hide Newest Authors", "seriesCards": "Stacked Series Covers", "heroCarousel": "Home Carousel", "gearLabel": "Theme", "srvTitle": "Server Defaults", "srvHint": "Save your current settings as the defaults for every user of this server. Users can still personalise their own look on top. Mount a volume at /data/nh in the theme container to keep these across updates.", "srvSave": "Save as server defaults", "srvClear": "Clear server defaults", "srvSaved": "Saved", "srvCleared": "Cleared", "srvErr": "Failed — admin login required", "crMode": "Continue Reading Shelf", "crCombine": "Combine into carousel", "crSeparate": "Keep as separate shelf", "crHide": "Hidden"},
+    pl: {"title": "Personalizacja motywu", "subtitle": "Dostosuj wygląd swojej biblioteki. Zmiany zapisują się automatycznie.", "branding": "Marka i styl", "colour": "Kolor i motyw", "homeCar": "Strona główna i karuzela", "sidebar": "Menu boczne", "appName": "Nazwa aplikacji", "appNameHint": "Pozostaw puste, aby użyć domyślnej nazwy.", "logoUrl": "Adres URL własnego logo", "logoHint": "Pozostaw puste, aby użyć domyślnego logo.", "accent": "Kolor akcentu", "baseTheme": "Motyw bazowy", "mainFont": "Czcionka główna", "carousel": "Automatyczne przewijanie karuzeli", "carouselHint": "Sekundy między slajdami. Ustaw 0, aby wyłączyć.", "customSeries": "Rozszerzone ostatnie serie", "seriesCount": "Liczba ostatnich serii", "seriesCountHint": "Ile serii pokazać na rozszerzonej półce.", "hideShelves": "Ukryj półki strony głównej", "sidebarHint": "Ukryj nieużywane pozycje menu bocznego.", "showAppName": "Pokaż nazwę aplikacji", "colorizeLogo": "Pokoloruj logo kolorem akcentu", "hideSeries": "Ukryj Serie", "hideCollections": "Ukryj Kolekcje", "hideAuthors": "Ukryj Autorów", "hideNarrators": "Ukryj Lektorów", "hideStats": "Ukryj Statystyki", "hideRecentlyAdded": "Ukryj Ostatnio dodane", "hideRecentSeries": "Ukryj Ostatnie serie", "hideContinueSeries": "Ukryj Kontynuuj serię", "hideListenAgain": "Ukryj Słuchaj ponownie", "hideDiscover": "Ukryj Odkrywaj", "hideNewestAuthors": "Ukryj Najnowszych autorów", "seriesCards": "Nakładane okładki serii", "heroCarousel": "Karuzela na stronie głównej", "gearLabel": "Motyw", "srvTitle": "Domyślne ustawienia serwera", "srvHint": "Zapisz bieżące ustawienia jako domyślne dla wszystkich użytkowników tego serwera. Użytkownicy nadal mogą personalizować swój wygląd. Zamontuj wolumin w /data/nh w kontenerze motywu, aby zachować je między aktualizacjami.", "srvSave": "Zapisz jako domyślne serwera", "srvClear": "Wyczyść domyślne serwera", "srvSaved": "Zapisano", "srvCleared": "Wyczyszczono", "srvErr": "Błąd — wymagane konto administratora", "crMode": "Półka Kontynuuj czytanie", "crCombine": "Połącz z karuzelą", "crSeparate": "Osobna półka", "crHide": "Ukryta"},
+    de: {"title": "Design-Anpassungen", "subtitle": "Personalisiere das Aussehen deiner Bibliothek. Änderungen werden automatisch gespeichert.", "branding": "Branding & Stil", "colour": "Farbe & Design", "homeCar": "Startseite & Karussell", "sidebar": "Seitenmenüs", "appName": "App-Name", "appNameHint": "Leer lassen für den Standardnamen.", "logoUrl": "Eigene Logo-URL", "logoHint": "Leer lassen für das Standardlogo.", "accent": "Akzentfarbe", "baseTheme": "Basis-Design", "mainFont": "Hauptschriftart", "carousel": "Karussell-Autowechsel", "carouselHint": "Sekunden zwischen Folien. 0 zum Deaktivieren.", "customSeries": "Erweiterte neueste Serien", "seriesCount": "Anzahl neuester Serien", "seriesCountHint": "Wie viele Serien im erweiterten Regal gezeigt werden.", "hideShelves": "Startseiten-Regale ausblenden", "sidebarHint": "Nicht genutzte Menüeinträge ausblenden.", "showAppName": "App-Namen anzeigen", "colorizeLogo": "Logo mit Akzentfarbe einfärben", "hideSeries": "Serien ausblenden", "hideCollections": "Sammlungen ausblenden", "hideAuthors": "Autoren ausblenden", "hideNarrators": "Sprecher ausblenden", "hideStats": "Statistiken ausblenden", "hideRecentlyAdded": "Kürzlich hinzugefügt ausblenden", "hideRecentSeries": "Neueste Serien ausblenden", "hideContinueSeries": "Serie fortsetzen ausblenden", "hideListenAgain": "Erneut anhören ausblenden", "hideDiscover": "Entdecken ausblenden", "hideNewestAuthors": "Neueste Autoren ausblenden", "seriesCards": "Gestapelte Serien-Cover", "heroCarousel": "Startseiten-Karussell", "gearLabel": "Design", "srvTitle": "Server-Standardwerte", "srvHint": "Speichere deine aktuellen Einstellungen als Standard für alle Nutzer dieses Servers. Nutzer können ihren Look weiterhin selbst anpassen. Binde ein Volume unter /data/nh im Theme-Container ein, um sie über Updates hinweg zu behalten.", "srvSave": "Als Server-Standard speichern", "srvClear": "Server-Standard löschen", "srvSaved": "Gespeichert", "srvCleared": "Gelöscht", "srvErr": "Fehlgeschlagen — Admin-Anmeldung erforderlich", "crMode": "Weiterlesen-Regal", "crCombine": "In Karussell integrieren", "crSeparate": "Als eigenes Regal", "crHide": "Ausgeblendet"},
+    fr: {"title": "Personnalisation du thème", "subtitle": "Personnalisez l’apparence de votre bibliothèque. Les modifications sont enregistrées automatiquement.", "branding": "Image de marque et style", "colour": "Couleur et thème", "homeCar": "Accueil et carrousel", "sidebar": "Menus latéraux", "appName": "Nom de l’application", "appNameHint": "Laissez vide pour le nom par défaut.", "logoUrl": "URL du logo personnalisé", "logoHint": "Laissez vide pour le logo par défaut.", "accent": "Couleur d’accent", "baseTheme": "Thème de base", "mainFont": "Police principale", "carousel": "Défilement automatique du carrousel", "carouselHint": "Secondes entre les diapositives. 0 pour désactiver.", "customSeries": "Séries récentes étendues", "seriesCount": "Nombre de séries récentes", "seriesCountHint": "Nombre de séries à afficher dans l’étagère étendue.", "hideShelves": "Masquer les étagères d’accueil", "sidebarHint": "Masquer les entrées du menu latéral inutilisées.", "showAppName": "Afficher le nom de l’application", "colorizeLogo": "Coloriser le logo avec la couleur d’accent", "hideSeries": "Masquer les séries", "hideCollections": "Masquer les collections", "hideAuthors": "Masquer les auteurs", "hideNarrators": "Masquer les narrateurs", "hideStats": "Masquer les statistiques", "hideRecentlyAdded": "Masquer Ajouts récents", "hideRecentSeries": "Masquer Séries récentes", "hideContinueSeries": "Masquer Continuer la série", "hideListenAgain": "Masquer Réécouter", "hideDiscover": "Masquer Découvrir", "hideNewestAuthors": "Masquer Nouveaux auteurs", "seriesCards": "Couvertures de séries empilées", "heroCarousel": "Carrousel d’accueil", "gearLabel": "Thème"},
+    es: {"title": "Personalización del tema", "subtitle": "Personaliza el aspecto de tu biblioteca. Los cambios se guardan automáticamente.", "branding": "Marca y estilo", "colour": "Color y tema", "homeCar": "Inicio y carrusel", "sidebar": "Menús laterales", "appName": "Nombre de la aplicación", "appNameHint": "Déjalo vacío para el nombre predeterminado.", "logoUrl": "URL de logotipo personalizado", "logoHint": "Déjalo vacío para el logotipo predeterminado.", "accent": "Color de acento", "baseTheme": "Tema base", "mainFont": "Fuente principal", "carousel": "Avance automático del carrusel", "carouselHint": "Segundos entre diapositivas. 0 para desactivar.", "customSeries": "Series recientes ampliadas", "seriesCount": "Número de series recientes", "seriesCountHint": "Cuántas series mostrar en el estante ampliado.", "hideShelves": "Ocultar estantes de inicio", "sidebarHint": "Oculta entradas del menú lateral que no uses.", "showAppName": "Mostrar nombre de la aplicación", "colorizeLogo": "Colorear logotipo con el color de acento", "hideSeries": "Ocultar Series", "hideCollections": "Ocultar Colecciones", "hideAuthors": "Ocultar Autores", "hideNarrators": "Ocultar Narradores", "hideStats": "Ocultar Estadísticas", "hideRecentlyAdded": "Ocultar Añadidos recientemente", "hideRecentSeries": "Ocultar Series recientes", "hideContinueSeries": "Ocultar Continuar serie", "hideListenAgain": "Ocultar Escuchar de nuevo", "hideDiscover": "Ocultar Descubrir", "hideNewestAuthors": "Ocultar Autores más recientes", "seriesCards": "Portadas de series apiladas", "heroCarousel": "Carrusel de inicio", "gearLabel": "Tema"},
+    it: {"title": "Personalizzazione del tema", "subtitle": "Personalizza l’aspetto della tua libreria. Le modifiche vengono salvate automaticamente.", "branding": "Brand e stile", "colour": "Colore e tema", "homeCar": "Home e carosello", "sidebar": "Menu laterali", "appName": "Nome dell’app", "appNameHint": "Lascia vuoto per il nome predefinito.", "logoUrl": "URL logo personalizzato", "logoHint": "Lascia vuoto per il logo predefinito.", "accent": "Colore d’accento", "baseTheme": "Tema di base", "mainFont": "Font principale", "carousel": "Avanzamento automatico carosello", "carouselHint": "Secondi tra le diapositive. 0 per disattivare.", "customSeries": "Serie recenti estese", "seriesCount": "Numero di serie recenti", "seriesCountHint": "Quante serie mostrare nello scaffale esteso.", "hideShelves": "Nascondi scaffali della home", "sidebarHint": "Nascondi le voci del menu laterale che non usi.", "showAppName": "Mostra nome dell’app", "colorizeLogo": "Colora il logo con il colore d’accento", "hideSeries": "Nascondi Serie", "hideCollections": "Nascondi Raccolte", "hideAuthors": "Nascondi Autori", "hideNarrators": "Nascondi Narratori", "hideStats": "Nascondi Statistiche", "hideRecentlyAdded": "Nascondi Aggiunti di recente", "hideRecentSeries": "Nascondi Serie recenti", "hideContinueSeries": "Nascondi Continua serie", "hideListenAgain": "Nascondi Riascolta", "hideDiscover": "Nascondi Scopri", "hideNewestAuthors": "Nascondi Autori più recenti", "seriesCards": "Copertine serie impilate", "heroCarousel": "Carosello della home", "gearLabel": "Tema"},
+    pt: {"title": "Personalização do tema", "subtitle": "Personalize a aparência da sua biblioteca. As alterações são salvas automaticamente.", "branding": "Marca e estilo", "colour": "Cor e tema", "homeCar": "Início e carrossel", "sidebar": "Menus laterais", "appName": "Nome do aplicativo", "appNameHint": "Deixe vazio para o nome padrão.", "logoUrl": "URL de logotipo personalizado", "logoHint": "Deixe vazio para o logotipo padrão.", "accent": "Cor de destaque", "baseTheme": "Tema base", "mainFont": "Fonte principal", "carousel": "Avanço automático do carrossel", "carouselHint": "Segundos entre slides. 0 para desativar.", "customSeries": "Séries recentes expandidas", "seriesCount": "Número de séries recentes", "seriesCountHint": "Quantas séries mostrar na estante expandida.", "hideShelves": "Ocultar estantes da página inicial", "sidebarHint": "Oculte itens do menu lateral que você não usa.", "showAppName": "Mostrar nome do aplicativo", "colorizeLogo": "Colorir logotipo com a cor de destaque", "hideSeries": "Ocultar Séries", "hideCollections": "Ocultar Coleções", "hideAuthors": "Ocultar Autores", "hideNarrators": "Ocultar Narradores", "hideStats": "Ocultar Estatísticas", "hideRecentlyAdded": "Ocultar Adicionados recentemente", "hideRecentSeries": "Ocultar Séries recentes", "hideContinueSeries": "Ocultar Continuar série", "hideListenAgain": "Ocultar Ouvir novamente", "hideDiscover": "Ocultar Descobrir", "hideNewestAuthors": "Ocultar Autores mais recentes", "seriesCards": "Capas de séries empilhadas", "heroCarousel": "Carrossel da página inicial", "gearLabel": "Tema"},
+    nl: {"title": "Thema-aanpassingen", "subtitle": "Personaliseer het uiterlijk van je bibliotheek. Wijzigingen worden automatisch opgeslagen.", "branding": "Branding & stijl", "colour": "Kleur & thema", "homeCar": "Home & carrousel", "sidebar": "Zijbalkmenu’s", "appName": "App-naam", "appNameHint": "Laat leeg voor de standaardnaam.", "logoUrl": "Aangepaste logo-URL", "logoHint": "Laat leeg voor het standaardlogo.", "accent": "Accentkleur", "baseTheme": "Basisthema", "mainFont": "Hoofdlettertype", "carousel": "Carrousel automatisch doorschuiven", "carouselHint": "Seconden tussen dia’s. 0 om uit te schakelen.", "customSeries": "Uitgebreide recente series", "seriesCount": "Aantal recente series", "seriesCountHint": "Hoeveel series in de uitgebreide plank tonen.", "hideShelves": "Homepagina-planken verbergen", "sidebarHint": "Verberg zijbalkitems die je niet gebruikt.", "showAppName": "App-naam tonen", "colorizeLogo": "Logo kleuren met accentkleur", "hideSeries": "Series verbergen", "hideCollections": "Collecties verbergen", "hideAuthors": "Auteurs verbergen", "hideNarrators": "Vertellers verbergen", "hideStats": "Statistieken verbergen", "hideRecentlyAdded": "Onlangs toegevoegd verbergen", "hideRecentSeries": "Recente series verbergen", "hideContinueSeries": "Serie voortzetten verbergen", "hideListenAgain": "Opnieuw luisteren verbergen", "hideDiscover": "Ontdekken verbergen", "hideNewestAuthors": "Nieuwste auteurs verbergen", "seriesCards": "Gestapelde seriecovers", "heroCarousel": "Home-carrousel", "gearLabel": "Thema"},
+    cs: {"title": "Přizpůsobení motivu", "subtitle": "Přizpůsobte vzhled své knihovny. Změny se ukládají automaticky.", "branding": "Značka a styl", "colour": "Barva a motiv", "homeCar": "Domů a karusel", "sidebar": "Boční nabídky", "appName": "Název aplikace", "appNameHint": "Ponechte prázdné pro výchozí název.", "logoUrl": "URL vlastního loga", "logoHint": "Ponechte prázdné pro výchozí logo.", "accent": "Barva zvýraznění", "baseTheme": "Základní motiv", "mainFont": "Hlavní písmo", "carousel": "Automatické posouvání karuselu", "carouselHint": "Sekundy mezi snímky. 0 pro vypnutí.", "customSeries": "Rozšířené nedávné série", "seriesCount": "Počet nedávných sérií", "seriesCountHint": "Kolik sérií zobrazit v rozšířené poličce.", "hideShelves": "Skrýt poličky domovské stránky", "sidebarHint": "Skryjte položky bočního menu, které nepoužíváte.", "showAppName": "Zobrazit název aplikace", "colorizeLogo": "Obarvit logo barvou zvýraznění", "hideSeries": "Skrýt Série", "hideCollections": "Skrýt Kolekce", "hideAuthors": "Skrýt Autory", "hideNarrators": "Skrýt Vypravěče", "hideStats": "Skrýt Statistiky", "hideRecentlyAdded": "Skrýt Nedávno přidané", "hideRecentSeries": "Skrýt Nedávné série", "hideContinueSeries": "Skrýt Pokračovat v sérii", "hideListenAgain": "Skrýt Poslechnout znovu", "hideDiscover": "Skrýt Objevovat", "hideNewestAuthors": "Skrýt Nejnovější autory", "seriesCards": "Skládané obálky sérií", "heroCarousel": "Karusel na domovské stránce", "gearLabel": "Motiv"},
+    sk: {"title": "Prispôsobenie motívu", "subtitle": "Prispôsobte vzhľad svojej knižnice. Zmeny sa ukladajú automaticky.", "branding": "Značka a štýl", "colour": "Farba a motív", "homeCar": "Domov a karusel", "sidebar": "Bočné ponuky", "appName": "Názov aplikácie", "appNameHint": "Ponechajte prázdne pre predvolený názov.", "logoUrl": "URL vlastného loga", "logoHint": "Ponechajte prázdne pre predvolené logo.", "accent": "Farba zvýraznenia", "baseTheme": "Základný motív", "mainFont": "Hlavné písmo", "carousel": "Automatické posúvanie karuselu", "carouselHint": "Sekundy medzi snímkami. 0 pre vypnutie.", "customSeries": "Rozšírené nedávne série", "seriesCount": "Počet nedávnych sérií", "seriesCountHint": "Koľko sérií zobraziť v rozšírenej poličke.", "hideShelves": "Skryť poličky domovskej stránky", "sidebarHint": "Skryte položky bočného menu, ktoré nepoužívate.", "showAppName": "Zobraziť názov aplikácie", "colorizeLogo": "Zafarbiť logo farbou zvýraznenia", "hideSeries": "Skryť Série", "hideCollections": "Skryť Kolekcie", "hideAuthors": "Skryť Autorov", "hideNarrators": "Skryť Rozprávačov", "hideStats": "Skryť Štatistiky", "hideRecentlyAdded": "Skryť Nedávno pridané", "hideRecentSeries": "Skryť Nedávne série", "hideContinueSeries": "Skryť Pokračovať v sérii", "hideListenAgain": "Skryť Počúvať znova", "hideDiscover": "Skryť Objavovať", "hideNewestAuthors": "Skryť Najnovších autorov", "seriesCards": "Skladané obálky sérií", "heroCarousel": "Karusel na domovskej stránke", "gearLabel": "Motív"},
+    da: {"title": "Tematilpasninger", "subtitle": "Tilpas udseendet af dit bibliotek. Ændringer gemmes automatisk.", "branding": "Branding & stil", "colour": "Farve & tema", "homeCar": "Hjem & karrusel", "sidebar": "Sidemenuer", "appName": "Appnavn", "appNameHint": "Lad stå tomt for standardnavnet.", "logoUrl": "Brugerdefineret logo-URL", "logoHint": "Lad stå tomt for standardlogoet.", "accent": "Accentfarve", "baseTheme": "Basistema", "mainFont": "Hovedskrifttype", "carousel": "Automatisk karruselskift", "carouselHint": "Sekunder mellem slides. 0 for at deaktivere.", "customSeries": "Udvidede seneste serier", "seriesCount": "Antal seneste serier", "seriesCountHint": "Hvor mange serier der vises på den udvidede hylde.", "hideShelves": "Skjul hylder på forsiden", "sidebarHint": "Skjul menupunkter du ikke bruger.", "showAppName": "Vis appnavn", "colorizeLogo": "Farvelæg logo med accentfarve", "hideSeries": "Skjul Serier", "hideCollections": "Skjul Samlinger", "hideAuthors": "Skjul Forfattere", "hideNarrators": "Skjul Fortællere", "hideStats": "Skjul Statistik", "hideRecentlyAdded": "Skjul Senest tilføjet", "hideRecentSeries": "Skjul Seneste serier", "hideContinueSeries": "Skjul Fortsæt serie", "hideListenAgain": "Skjul Lyt igen", "hideDiscover": "Skjul Opdag", "hideNewestAuthors": "Skjul Nyeste forfattere", "seriesCards": "Stablede seriecovers", "heroCarousel": "Forside-karrusel", "gearLabel": "Tema"},
+    sv: {"title": "Temaanpassningar", "subtitle": "Anpassa utseendet på ditt bibliotek. Ändringar sparas automatiskt.", "branding": "Varumärke & stil", "colour": "Färg & tema", "homeCar": "Hem & karusell", "sidebar": "Sidomenyer", "appName": "Appnamn", "appNameHint": "Lämna tomt för standardnamnet.", "logoUrl": "Anpassad logotyp-URL", "logoHint": "Lämna tomt för standardlogotypen.", "accent": "Accentfärg", "baseTheme": "Bastema", "mainFont": "Huvudtypsnitt", "carousel": "Automatisk karusellväxling", "carouselHint": "Sekunder mellan bilder. 0 för att inaktivera.", "customSeries": "Utökade senaste serier", "seriesCount": "Antal senaste serier", "seriesCountHint": "Hur många serier som visas på den utökade hyllan.", "hideShelves": "Dölj hyllor på startsidan", "sidebarHint": "Dölj sidomenyposter du inte använder.", "showAppName": "Visa appnamn", "colorizeLogo": "Färglägg logotypen med accentfärgen", "hideSeries": "Dölj Serier", "hideCollections": "Dölj Samlingar", "hideAuthors": "Dölj Författare", "hideNarrators": "Dölj Uppläsare", "hideStats": "Dölj Statistik", "hideRecentlyAdded": "Dölj Nyligen tillagda", "hideRecentSeries": "Dölj Senaste serier", "hideContinueSeries": "Dölj Fortsätt serie", "hideListenAgain": "Dölj Lyssna igen", "hideDiscover": "Dölj Upptäck", "hideNewestAuthors": "Dölj Nyaste författare", "seriesCards": "Staplade serieomslag", "heroCarousel": "Startsidans karusell", "gearLabel": "Tema"},
+    no: {"title": "Tematilpasninger", "subtitle": "Tilpass utseendet på biblioteket ditt. Endringer lagres automatisk.", "branding": "Merkevare og stil", "colour": "Farge og tema", "homeCar": "Hjem og karusell", "sidebar": "Sidemenyer", "appName": "Appnavn", "appNameHint": "La stå tomt for standardnavnet.", "logoUrl": "Egendefinert logo-URL", "logoHint": "La stå tomt for standardlogoen.", "accent": "Aksentfarge", "baseTheme": "Basistema", "mainFont": "Hovedskrift", "carousel": "Automatisk karusellbytte", "carouselHint": "Sekunder mellom lysbilder. 0 for å deaktivere.", "customSeries": "Utvidede nylige serier", "seriesCount": "Antall nylige serier", "seriesCountHint": "Hvor mange serier som vises i den utvidede hyllen.", "hideShelves": "Skjul hyller på forsiden", "sidebarHint": "Skjul sidemenyoppføringer du ikke bruker.", "showAppName": "Vis appnavn", "colorizeLogo": "Fargelegg logoen med aksentfargen", "hideSeries": "Skjul Serier", "hideCollections": "Skjul Samlinger", "hideAuthors": "Skjul Forfattere", "hideNarrators": "Skjul Fortellere", "hideStats": "Skjul Statistikk", "hideRecentlyAdded": "Skjul Nylig lagt til", "hideRecentSeries": "Skjul Nylige serier", "hideContinueSeries": "Skjul Fortsett serie", "hideListenAgain": "Skjul Lytt igjen", "hideDiscover": "Skjul Oppdag", "hideNewestAuthors": "Skjul Nyeste forfattere", "seriesCards": "Stablede serieomslag", "heroCarousel": "Forsidekarusell", "gearLabel": "Tema"},
+    fi: {"title": "Teeman mukautukset", "subtitle": "Mukauta kirjastosi ulkoasua. Muutokset tallentuvat automaattisesti.", "branding": "Brändi ja tyyli", "colour": "Väri ja teema", "homeCar": "Koti ja karuselli", "sidebar": "Sivuvalikot", "appName": "Sovelluksen nimi", "appNameHint": "Jätä tyhjäksi käyttääksesi oletusnimeä.", "logoUrl": "Mukautetun logon URL", "logoHint": "Jätä tyhjäksi käyttääksesi oletuslogoa.", "accent": "Korostusväri", "baseTheme": "Perusteema", "mainFont": "Pääfontti", "carousel": "Karusellin automaattinen vaihto", "carouselHint": "Sekunteja diojen välillä. 0 poistaa käytöstä.", "customSeries": "Laajennetut viimeisimmät sarjat", "seriesCount": "Viimeisimpien sarjojen määrä", "seriesCountHint": "Montako sarjaa näytetään laajennetulla hyllyllä.", "hideShelves": "Piilota etusivun hyllyt", "sidebarHint": "Piilota sivuvalikon kohteet, joita et käytä.", "showAppName": "Näytä sovelluksen nimi", "colorizeLogo": "Väritä logo korostusvärillä", "hideSeries": "Piilota Sarjat", "hideCollections": "Piilota Kokoelmat", "hideAuthors": "Piilota Kirjailijat", "hideNarrators": "Piilota Lukijat", "hideStats": "Piilota Tilastot", "hideRecentlyAdded": "Piilota Äskettäin lisätyt", "hideRecentSeries": "Piilota Viimeisimmät sarjat", "hideContinueSeries": "Piilota Jatka sarjaa", "hideListenAgain": "Piilota Kuuntele uudelleen", "hideDiscover": "Piilota Löydä", "hideNewestAuthors": "Piilota Uusimmat kirjailijat", "seriesCards": "Pinotut sarjakannet", "heroCarousel": "Etusivun karuselli", "gearLabel": "Teema"},
+    ru: {"title": "Настройки темы", "subtitle": "Настройте внешний вид вашей библиотеки. Изменения сохраняются автоматически.", "branding": "Бренд и стиль", "colour": "Цвет и тема", "homeCar": "Главная и карусель", "sidebar": "Боковые меню", "appName": "Название приложения", "appNameHint": "Оставьте пустым для названия по умолчанию.", "logoUrl": "URL собственного логотипа", "logoHint": "Оставьте пустым для логотипа по умолчанию.", "accent": "Акцентный цвет", "baseTheme": "Базовая тема", "mainFont": "Основной шрифт", "carousel": "Автопрокрутка карусели", "carouselHint": "Секунд между слайдами. 0 — отключить.", "customSeries": "Расширенные недавние серии", "seriesCount": "Количество недавних серий", "seriesCountHint": "Сколько серий показывать на расширенной полке.", "hideShelves": "Скрыть полки главной страницы", "sidebarHint": "Скройте неиспользуемые пункты бокового меню.", "showAppName": "Показывать название приложения", "colorizeLogo": "Окрашивать логотип акцентным цветом", "hideSeries": "Скрыть Серии", "hideCollections": "Скрыть Коллекции", "hideAuthors": "Скрыть Авторов", "hideNarrators": "Скрыть Чтецов", "hideStats": "Скрыть Статистику", "hideRecentlyAdded": "Скрыть Недавно добавленные", "hideRecentSeries": "Скрыть Недавние серии", "hideContinueSeries": "Скрыть Продолжить серию", "hideListenAgain": "Скрыть Слушать снова", "hideDiscover": "Скрыть Обзор", "hideNewestAuthors": "Скрыть Новейших авторов", "seriesCards": "Стопки обложек серий", "heroCarousel": "Карусель на главной", "gearLabel": "Тема"},
+    uk: {"title": "Налаштування теми", "subtitle": "Налаштуйте вигляд вашої бібліотеки. Зміни зберігаються автоматично.", "branding": "Бренд і стиль", "colour": "Колір і тема", "homeCar": "Головна та карусель", "sidebar": "Бічні меню", "appName": "Назва застосунку", "appNameHint": "Залиште порожнім для назви за замовчуванням.", "logoUrl": "URL власного логотипа", "logoHint": "Залиште порожнім для логотипа за замовчуванням.", "accent": "Акцентний колір", "baseTheme": "Базова тема", "mainFont": "Основний шрифт", "carousel": "Автопрокручування каруселі", "carouselHint": "Секунд між слайдами. 0 — вимкнути.", "customSeries": "Розширені нещодавні серії", "seriesCount": "Кількість нещодавніх серій", "seriesCountHint": "Скільки серій показувати на розширеній полиці.", "hideShelves": "Приховати полиці головної сторінки", "sidebarHint": "Приховайте невикористовувані пункти бічного меню.", "showAppName": "Показувати назву застосунку", "colorizeLogo": "Забарвити логотип акцентним кольором", "hideSeries": "Приховати Серії", "hideCollections": "Приховати Колекції", "hideAuthors": "Приховати Авторів", "hideNarrators": "Приховати Читців", "hideStats": "Приховати Статистику", "hideRecentlyAdded": "Приховати Нещодавно додані", "hideRecentSeries": "Приховати Нещодавні серії", "hideContinueSeries": "Приховати Продовжити серію", "hideListenAgain": "Приховати Слухати знову", "hideDiscover": "Приховати Огляд", "hideNewestAuthors": "Приховати Найновіших авторів", "seriesCards": "Стос обкладинок серій", "heroCarousel": "Карусель на головній", "gearLabel": "Тема"},
+    be: {"title": "Налады тэмы", "subtitle": "Наладзьце выгляд вашай бібліятэкі. Змены захоўваюцца аўтаматычна.", "branding": "Брэнд і стыль", "colour": "Колер і тэма", "homeCar": "Галоўная і карусель", "sidebar": "Бакавыя меню", "appName": "Назва праграмы", "appNameHint": "Пакіньце пустым для назвы па змаўчанні.", "logoUrl": "URL уласнага лагатыпа", "logoHint": "Пакіньце пустым для лагатыпа па змаўчанні.", "accent": "Акцэнтны колер", "baseTheme": "Базавая тэма", "mainFont": "Асноўны шрыфт", "carousel": "Аўтапракрутка каруселі", "carouselHint": "Секунд паміж слайдамі. 0 — адключыць.", "customSeries": "Пашыраныя нядаўнія серыі", "seriesCount": "Колькасць нядаўніх серый", "seriesCountHint": "Колькі серый паказваць на пашыранай паліцы.", "hideShelves": "Схаваць паліцы галоўнай старонкі", "sidebarHint": "Схавайце пункты бакавога меню, якімі не карыстаецеся.", "showAppName": "Паказваць назву праграмы", "colorizeLogo": "Афарбаваць лагатып акцэнтным колерам", "hideSeries": "Схаваць Серыі", "hideCollections": "Схаваць Калекцыі", "hideAuthors": "Схаваць Аўтараў", "hideNarrators": "Схаваць Чытальнікаў", "hideStats": "Схаваць Статыстыку", "hideRecentlyAdded": "Схаваць Нядаўна дададзеныя", "hideRecentSeries": "Схаваць Нядаўнія серыі", "hideContinueSeries": "Схаваць Працягнуць серыю", "hideListenAgain": "Схаваць Слухаць зноў", "hideDiscover": "Схаваць Агляд", "hideNewestAuthors": "Схаваць Найноўшых аўтараў", "seriesCards": "Стос вокладак серый", "heroCarousel": "Карусель на галоўнай", "gearLabel": "Тэма"},
+    bg: {"title": "Персонализация на темата", "subtitle": "Персонализирайте вида на библиотеката си. Промените се записват автоматично.", "branding": "Марка и стил", "colour": "Цвят и тема", "homeCar": "Начало и въртележка", "sidebar": "Странични менюта", "appName": "Име на приложението", "appNameHint": "Оставете празно за името по подразбиране.", "logoUrl": "URL на собствено лого", "logoHint": "Оставете празно за логото по подразбиране.", "accent": "Акцентен цвят", "baseTheme": "Основна тема", "mainFont": "Основен шрифт", "carousel": "Автоматично превъртане на въртележката", "carouselHint": "Секунди между слайдовете. 0 за изключване.", "customSeries": "Разширени скорошни поредици", "seriesCount": "Брой скорошни поредици", "seriesCountHint": "Колко поредици да се показват на разширения рафт.", "hideShelves": "Скриване на рафтовете на началната страница", "sidebarHint": "Скрийте неизползвани елементи от страничното меню.", "showAppName": "Показване на името на приложението", "colorizeLogo": "Оцветяване на логото с акцентния цвят", "hideSeries": "Скрий Поредици", "hideCollections": "Скрий Колекции", "hideAuthors": "Скрий Автори", "hideNarrators": "Скрий Разказвачи", "hideStats": "Скрий Статистика", "hideRecentlyAdded": "Скрий Наскоро добавени", "hideRecentSeries": "Скрий Скорошни поредици", "hideContinueSeries": "Скрий Продължи поредицата", "hideListenAgain": "Скрий Слушай отново", "hideDiscover": "Скрий Открий", "hideNewestAuthors": "Скрий Най-нови автори", "seriesCards": "Подредени корици на поредици", "heroCarousel": "Въртележка на началната страница", "gearLabel": "Тема"},
+    hr: {"title": "Prilagodbe teme", "subtitle": "Prilagodite izgled svoje knjižnice. Promjene se spremaju automatski.", "branding": "Brend i stil", "colour": "Boja i tema", "homeCar": "Početna i vrtuljak", "sidebar": "Bočni izbornici", "appName": "Naziv aplikacije", "appNameHint": "Ostavite prazno za zadani naziv.", "logoUrl": "URL prilagođenog logotipa", "logoHint": "Ostavite prazno za zadani logotip.", "accent": "Boja isticanja", "baseTheme": "Osnovna tema", "mainFont": "Glavni font", "carousel": "Automatsko pomicanje vrtuljka", "carouselHint": "Sekunde između slajdova. 0 za isključivanje.", "customSeries": "Proširene nedavne serije", "seriesCount": "Broj nedavnih serija", "seriesCountHint": "Koliko serija prikazati na proširenoj polici.", "hideShelves": "Sakrij police početne stranice", "sidebarHint": "Sakrijte stavke bočnog izbornika koje ne koristite.", "showAppName": "Prikaži naziv aplikacije", "colorizeLogo": "Oboji logotip bojom isticanja", "hideSeries": "Sakrij Serije", "hideCollections": "Sakrij Zbirke", "hideAuthors": "Sakrij Autore", "hideNarrators": "Sakrij Pripovjedače", "hideStats": "Sakrij Statistiku", "hideRecentlyAdded": "Sakrij Nedavno dodano", "hideRecentSeries": "Sakrij Nedavne serije", "hideContinueSeries": "Sakrij Nastavi seriju", "hideListenAgain": "Sakrij Slušaj ponovno", "hideDiscover": "Sakrij Otkrij", "hideNewestAuthors": "Sakrij Najnovije autore", "seriesCards": "Naslagane naslovnice serija", "heroCarousel": "Vrtuljak početne stranice", "gearLabel": "Tema"},
+    sl: {"title": "Prilagoditve teme", "subtitle": "Prilagodite videz svoje knjižnice. Spremembe se samodejno shranijo.", "branding": "Blagovna znamka in slog", "colour": "Barva in tema", "homeCar": "Domov in vrtiljak", "sidebar": "Stranski meniji", "appName": "Ime aplikacije", "appNameHint": "Pustite prazno za privzeto ime.", "logoUrl": "URL lastnega logotipa", "logoHint": "Pustite prazno za privzeti logotip.", "accent": "Poudarna barva", "baseTheme": "Osnovna tema", "mainFont": "Glavna pisava", "carousel": "Samodejno premikanje vrtiljaka", "carouselHint": "Sekunde med diapozitivi. 0 za izklop.", "customSeries": "Razširjene nedavne serije", "seriesCount": "Število nedavnih serij", "seriesCountHint": "Koliko serij prikazati na razširjeni polici.", "hideShelves": "Skrij police domače strani", "sidebarHint": "Skrijte elemente stranskega menija, ki jih ne uporabljate.", "showAppName": "Prikaži ime aplikacije", "colorizeLogo": "Pobarvaj logotip s poudarno barvo", "hideSeries": "Skrij Serije", "hideCollections": "Skrij Zbirke", "hideAuthors": "Skrij Avtorje", "hideNarrators": "Skrij Pripovedovalce", "hideStats": "Skrij Statistiko", "hideRecentlyAdded": "Skrij Nedavno dodano", "hideRecentSeries": "Skrij Nedavne serije", "hideContinueSeries": "Skrij Nadaljuj serijo", "hideListenAgain": "Skrij Poslušaj znova", "hideDiscover": "Skrij Odkrij", "hideNewestAuthors": "Skrij Najnovejše avtorje", "seriesCards": "Zložene naslovnice serij", "heroCarousel": "Vrtiljak domače strani", "gearLabel": "Tema"},
+    hu: {"title": "Téma testreszabása", "subtitle": "Szabja testre könyvtára megjelenését. A módosítások automatikusan mentődnek.", "branding": "Arculat és stílus", "colour": "Szín és téma", "homeCar": "Kezdőlap és körhinta", "sidebar": "Oldalsó menük", "appName": "Alkalmazás neve", "appNameHint": "Hagyja üresen az alapértelmezett névhez.", "logoUrl": "Egyéni logó URL", "logoHint": "Hagyja üresen az alapértelmezett logóhoz.", "accent": "Kiemelőszín", "baseTheme": "Alaptéma", "mainFont": "Fő betűtípus", "carousel": "Körhinta automatikus léptetése", "carouselHint": "Másodpercek a diák között. 0 a kikapcsoláshoz.", "customSeries": "Bővített legutóbbi sorozatok", "seriesCount": "Legutóbbi sorozatok száma", "seriesCountHint": "Hány sorozat jelenjen meg a bővített polcon.", "hideShelves": "Kezdőlapi polcok elrejtése", "sidebarHint": "Rejtse el a nem használt oldalmenü-elemeket.", "showAppName": "Alkalmazásnév megjelenítése", "colorizeLogo": "Logó színezése a kiemelőszínnel", "hideSeries": "Sorozatok elrejtése", "hideCollections": "Gyűjtemények elrejtése", "hideAuthors": "Szerzők elrejtése", "hideNarrators": "Felolvasók elrejtése", "hideStats": "Statisztikák elrejtése", "hideRecentlyAdded": "Nemrég hozzáadottak elrejtése", "hideRecentSeries": "Legutóbbi sorozatok elrejtése", "hideContinueSeries": "Sorozat folytatása elrejtése", "hideListenAgain": "Újrahallgatás elrejtése", "hideDiscover": "Felfedezés elrejtése", "hideNewestAuthors": "Legújabb szerzők elrejtése", "seriesCards": "Halmozott sorozatborítók", "heroCarousel": "Kezdőlapi körhinta", "gearLabel": "Téma"},
+    ro: {"title": "Personalizarea temei", "subtitle": "Personalizați aspectul bibliotecii dvs. Modificările se salvează automat.", "branding": "Brand și stil", "colour": "Culoare și temă", "homeCar": "Acasă și carusel", "sidebar": "Meniuri laterale", "appName": "Numele aplicației", "appNameHint": "Lăsați gol pentru numele implicit.", "logoUrl": "URL logo personalizat", "logoHint": "Lăsați gol pentru logo-ul implicit.", "accent": "Culoare de accent", "baseTheme": "Temă de bază", "mainFont": "Font principal", "carousel": "Avansare automată carusel", "carouselHint": "Secunde între diapozitive. 0 pentru dezactivare.", "customSeries": "Serii recente extinse", "seriesCount": "Numărul de serii recente", "seriesCountHint": "Câte serii să fie afișate pe raftul extins.", "hideShelves": "Ascunde rafturile paginii principale", "sidebarHint": "Ascundeți elementele din meniul lateral pe care nu le folosiți.", "showAppName": "Afișează numele aplicației", "colorizeLogo": "Colorează logo-ul cu culoarea de accent", "hideSeries": "Ascunde Serii", "hideCollections": "Ascunde Colecții", "hideAuthors": "Ascunde Autori", "hideNarrators": "Ascunde Naratori", "hideStats": "Ascunde Statistici", "hideRecentlyAdded": "Ascunde Adăugate recent", "hideRecentSeries": "Ascunde Serii recente", "hideContinueSeries": "Ascunde Continuă seria", "hideListenAgain": "Ascunde Ascultă din nou", "hideDiscover": "Ascunde Descoperă", "hideNewestAuthors": "Ascunde Cei mai noi autori", "seriesCards": "Coperți de serii suprapuse", "heroCarousel": "Carusel pagină principală", "gearLabel": "Temă"},
+    lt: {"title": "Temos tinkinimas", "subtitle": "Tinkinkite savo bibliotekos išvaizdą. Pakeitimai išsaugomi automatiškai.", "branding": "Prekės ženklas ir stilius", "colour": "Spalva ir tema", "homeCar": "Pradžia ir karuselė", "sidebar": "Šoniniai meniu", "appName": "Programos pavadinimas", "appNameHint": "Palikite tuščią numatytajam pavadinimui.", "logoUrl": "Pasirinktinio logotipo URL", "logoHint": "Palikite tuščią numatytajam logotipui.", "accent": "Akcento spalva", "baseTheme": "Bazinė tema", "mainFont": "Pagrindinis šriftas", "carousel": "Automatinis karuselės sukimas", "carouselHint": "Sekundės tarp skaidrių. 0 — išjungti.", "customSeries": "Išplėstos naujausios serijos", "seriesCount": "Naujausių serijų skaičius", "seriesCountHint": "Kiek serijų rodyti išplėstoje lentynoje.", "hideShelves": "Slėpti pradžios puslapio lentynas", "sidebarHint": "Slėpkite nenaudojamus šoninio meniu punktus.", "showAppName": "Rodyti programos pavadinimą", "colorizeLogo": "Nuspalvinti logotipą akcento spalva", "hideSeries": "Slėpti Serijas", "hideCollections": "Slėpti Kolekcijas", "hideAuthors": "Slėpti Autorius", "hideNarrators": "Slėpti Skaitovus", "hideStats": "Slėpti Statistiką", "hideRecentlyAdded": "Slėpti Neseniai pridėta", "hideRecentSeries": "Slėpti Naujausias serijas", "hideContinueSeries": "Slėpti Tęsti seriją", "hideListenAgain": "Slėpti Klausyti dar kartą", "hideDiscover": "Slėpti Atrasti", "hideNewestAuthors": "Slėpti Naujausius autorius", "seriesCards": "Sudėtos serijų viršelės", "heroCarousel": "Pradžios puslapio karuselė", "gearLabel": "Tema"},
+    lv: {"title": "Motīva pielāgošana", "subtitle": "Pielāgojiet savas bibliotēkas izskatu. Izmaiņas tiek saglabātas automātiski.", "branding": "Zīmols un stils", "colour": "Krāsa un motīvs", "homeCar": "Sākums un karuselis", "sidebar": "Sānu izvēlnes", "appName": "Lietotnes nosaukums", "appNameHint": "Atstājiet tukšu noklusējuma nosaukumam.", "logoUrl": "Pielāgota logotipa URL", "logoHint": "Atstājiet tukšu noklusējuma logotipam.", "accent": "Akcenta krāsa", "baseTheme": "Pamata motīvs", "mainFont": "Galvenais fonts", "carousel": "Karuseļa automātiskā pārslēgšana", "carouselHint": "Sekundes starp slaidiem. 0, lai atspējotu.", "customSeries": "Paplašinātas nesenās sērijas", "seriesCount": "Neseno sēriju skaits", "seriesCountHint": "Cik sērijas rādīt paplašinātajā plauktā.", "hideShelves": "Paslēpt sākumlapas plauktus", "sidebarHint": "Paslēpiet neizmantotos sānu izvēlnes vienumus.", "showAppName": "Rādīt lietotnes nosaukumu", "colorizeLogo": "Iekrāsot logotipu ar akcenta krāsu", "hideSeries": "Paslēpt Sērijas", "hideCollections": "Paslēpt Kolekcijas", "hideAuthors": "Paslēpt Autorus", "hideNarrators": "Paslēpt Lasītājus", "hideStats": "Paslēpt Statistiku", "hideRecentlyAdded": "Paslēpt Nesen pievienotos", "hideRecentSeries": "Paslēpt Nesenās sērijas", "hideContinueSeries": "Paslēpt Turpināt sēriju", "hideListenAgain": "Paslēpt Klausīties vēlreiz", "hideDiscover": "Paslēpt Atklāt", "hideNewestAuthors": "Paslēpt Jaunākos autorus", "seriesCards": "Sakrautas sēriju vāku bildes", "heroCarousel": "Sākumlapas karuselis", "gearLabel": "Motīvs"},
+    et: {"title": "Teema kohandamine", "subtitle": "Kohandage oma raamatukogu välimust. Muudatused salvestatakse automaatselt.", "branding": "Bränd ja stiil", "colour": "Värv ja teema", "homeCar": "Avaleht ja karussell", "sidebar": "Külgmenüüd", "appName": "Rakenduse nimi", "appNameHint": "Jätke tühjaks vaikimisi nime jaoks.", "logoUrl": "Kohandatud logo URL", "logoHint": "Jätke tühjaks vaikimisi logo jaoks.", "accent": "Rõhuvärv", "baseTheme": "Põhiteema", "mainFont": "Peamine font", "carousel": "Karusselli automaatne liikumine", "carouselHint": "Sekundid slaidide vahel. 0 keelamiseks.", "customSeries": "Laiendatud hiljutised sarjad", "seriesCount": "Hiljutiste sarjade arv", "seriesCountHint": "Mitu sarja laiendatud riiulil kuvada.", "hideShelves": "Peida avalehe riiulid", "sidebarHint": "Peitke külgmenüü kirjed, mida te ei kasuta.", "showAppName": "Kuva rakenduse nimi", "colorizeLogo": "Värvi logo rõhuvärviga", "hideSeries": "Peida Sarjad", "hideCollections": "Peida Kogud", "hideAuthors": "Peida Autorid", "hideNarrators": "Peida Lugejad", "hideStats": "Peida Statistika", "hideRecentlyAdded": "Peida Hiljuti lisatud", "hideRecentSeries": "Peida Hiljutised sarjad", "hideContinueSeries": "Peida Jätka sarja", "hideListenAgain": "Peida Kuula uuesti", "hideDiscover": "Peida Avasta", "hideNewestAuthors": "Peida Uusimad autorid", "seriesCards": "Virnastatud sarjakaaned", "heroCarousel": "Avalehe karussell", "gearLabel": "Teema"},
+    el: {"title": "Προσαρμογές θέματος", "subtitle": "Προσαρμόστε την εμφάνιση της βιβλιοθήκης σας. Οι αλλαγές αποθηκεύονται αυτόματα.", "branding": "Επωνυμία και στυλ", "colour": "Χρώμα και θέμα", "homeCar": "Αρχική και καρουζέλ", "sidebar": "Πλευρικά μενού", "appName": "Όνομα εφαρμογής", "appNameHint": "Αφήστε κενό για το προεπιλεγμένο όνομα.", "logoUrl": "URL προσαρμοσμένου λογότυπου", "logoHint": "Αφήστε κενό για το προεπιλεγμένο λογότυπο.", "accent": "Χρώμα έμφασης", "baseTheme": "Βασικό θέμα", "mainFont": "Κύρια γραμματοσειρά", "carousel": "Αυτόματη προώθηση καρουζέλ", "carouselHint": "Δευτερόλεπτα μεταξύ διαφανειών. 0 για απενεργοποίηση.", "customSeries": "Εκτεταμένες πρόσφατες σειρές", "seriesCount": "Αριθμός πρόσφατων σειρών", "seriesCountHint": "Πόσες σειρές θα εμφανίζονται στο εκτεταμένο ράφι.", "hideShelves": "Απόκρυψη ραφιών αρχικής σελίδας", "sidebarHint": "Αποκρύψτε στοιχεία πλευρικού μενού που δεν χρησιμοποιείτε.", "showAppName": "Εμφάνιση ονόματος εφαρμογής", "colorizeLogo": "Χρωματισμός λογότυπου με το χρώμα έμφασης", "hideSeries": "Απόκρυψη Σειρών", "hideCollections": "Απόκρυψη Συλλογών", "hideAuthors": "Απόκρυψη Συγγραφέων", "hideNarrators": "Απόκρυψη Αφηγητών", "hideStats": "Απόκρυψη Στατιστικών", "hideRecentlyAdded": "Απόκρυψη Πρόσφατα προστεθέντων", "hideRecentSeries": "Απόκρυψη Πρόσφατων σειρών", "hideContinueSeries": "Απόκρυψη Συνέχισης σειράς", "hideListenAgain": "Απόκρυψη Ακούστε ξανά", "hideDiscover": "Απόκρυψη Ανακαλύψτε", "hideNewestAuthors": "Απόκρυψη Νεότερων συγγραφέων", "seriesCards": "Στοιβαγμένα εξώφυλλα σειρών", "heroCarousel": "Καρουζέλ αρχικής σελίδας", "gearLabel": "Θέμα"},
+    tr: {"title": "Tema Özelleştirmeleri", "subtitle": "Kitaplığınızın görünümünü kişiselleştirin. Değişiklikler otomatik kaydedilir.", "branding": "Marka ve Stil", "colour": "Renk ve Tema", "homeCar": "Ana Sayfa ve Slayt", "sidebar": "Yan Menüler", "appName": "Uygulama Adı", "appNameHint": "Varsayılan ad için boş bırakın.", "logoUrl": "Özel Logo URL’si", "logoHint": "Varsayılan logo için boş bırakın.", "accent": "Vurgu Rengi", "baseTheme": "Temel Tema", "mainFont": "Ana Yazı Tipi", "carousel": "Slayt Otomatik İlerleme", "carouselHint": "Slaytlar arası saniye. Devre dışı bırakmak için 0.", "customSeries": "Genişletilmiş Son Seriler", "seriesCount": "Son Seri Sayısı", "seriesCountHint": "Genişletilmiş rafta kaç seri gösterileceği.", "hideShelves": "Ana Sayfa Raflarını Gizle", "sidebarHint": "Kullanmadığınız yan menü öğelerini gizleyin.", "showAppName": "Uygulama Adını Göster", "colorizeLogo": "Logoyu Vurgu Rengiyle Renklendir", "hideSeries": "Serileri Gizle", "hideCollections": "Koleksiyonları Gizle", "hideAuthors": "Yazarları Gizle", "hideNarrators": "Seslendirenleri Gizle", "hideStats": "İstatistikleri Gizle", "hideRecentlyAdded": "Son Eklenenleri Gizle", "hideRecentSeries": "Son Serileri Gizle", "hideContinueSeries": "Seriye Devam Et’i Gizle", "hideListenAgain": "Tekrar Dinle’yi Gizle", "hideDiscover": "Keşfet’i Gizle", "hideNewestAuthors": "En Yeni Yazarları Gizle", "seriesCards": "Yığılmış Seri Kapakları", "heroCarousel": "Ana Sayfa Slaytı", "gearLabel": "Tema"},
+    ca: {"title": "Personalització del tema", "subtitle": "Personalitzeu l’aspecte de la vostra biblioteca. Els canvis es desen automàticament.", "branding": "Marca i estil", "colour": "Color i tema", "homeCar": "Inici i carrusel", "sidebar": "Menús laterals", "appName": "Nom de l’aplicació", "appNameHint": "Deixeu-ho buit per al nom predeterminat.", "logoUrl": "URL de logotip personalitzat", "logoHint": "Deixeu-ho buit per al logotip predeterminat.", "accent": "Color d’èmfasi", "baseTheme": "Tema base", "mainFont": "Tipus de lletra principal", "carousel": "Avanç automàtic del carrusel", "carouselHint": "Segons entre diapositives. 0 per desactivar.", "customSeries": "Sèries recents ampliades", "seriesCount": "Nombre de sèries recents", "seriesCountHint": "Quantes sèries es mostren al prestatge ampliat.", "hideShelves": "Amaga els prestatges d’inici", "sidebarHint": "Amagueu entrades del menú lateral que no feu servir.", "showAppName": "Mostra el nom de l’aplicació", "colorizeLogo": "Acoloreix el logotip amb el color d’èmfasi", "hideSeries": "Amaga Sèries", "hideCollections": "Amaga Col·leccions", "hideAuthors": "Amaga Autors", "hideNarrators": "Amaga Narradors", "hideStats": "Amaga Estadístiques", "hideRecentlyAdded": "Amaga Afegits recentment", "hideRecentSeries": "Amaga Sèries recents", "hideContinueSeries": "Amaga Continua la sèrie", "hideListenAgain": "Amaga Escolta de nou", "hideDiscover": "Amaga Descobreix", "hideNewestAuthors": "Amaga Autors més nous", "seriesCards": "Cobertes de sèries apilades", "heroCarousel": "Carrusel d’inici", "gearLabel": "Tema"},
+    eu: {"title": "Gaiaren pertsonalizazioa", "subtitle": "Pertsonalizatu zure liburutegiaren itxura. Aldaketak automatikoki gordetzen dira.", "branding": "Marka eta estiloa", "colour": "Kolorea eta gaia", "homeCar": "Hasiera eta karrusela", "sidebar": "Alboko menuak", "appName": "Aplikazioaren izena", "appNameHint": "Utzi hutsik izen lehenetsirako.", "logoUrl": "Logotipo pertsonalizatuaren URLa", "logoHint": "Utzi hutsik logotipo lehenetsirako.", "accent": "Azentu-kolorea", "baseTheme": "Oinarrizko gaia", "mainFont": "Letra-tipo nagusia", "carousel": "Karruselaren aurrerapen automatikoa", "carouselHint": "Diapositiben arteko segundoak. 0 desgaitzeko.", "customSeries": "Azken serie hedatuak", "seriesCount": "Azken serieen kopurua", "seriesCountHint": "Zenbat serie erakutsi apal hedatuan.", "hideShelves": "Ezkutatu hasierako apalak", "sidebarHint": "Ezkutatu erabiltzen ez dituzun alboko menuko sarrerak.", "showAppName": "Erakutsi aplikazioaren izena", "colorizeLogo": "Koloreztatu logotipoa azentu-kolorearekin", "hideSeries": "Ezkutatu Serieak", "hideCollections": "Ezkutatu Bildumak", "hideAuthors": "Ezkutatu Egileak", "hideNarrators": "Ezkutatu Narratzaileak", "hideStats": "Ezkutatu Estatistikak", "hideRecentlyAdded": "Ezkutatu Duela gutxi gehituak", "hideRecentSeries": "Ezkutatu Azken serieak", "hideContinueSeries": "Ezkutatu Jarraitu seriea", "hideListenAgain": "Ezkutatu Entzun berriro", "hideDiscover": "Ezkutatu Aurkitu", "hideNewestAuthors": "Ezkutatu Egile berrienak", "seriesCards": "Serieen azal pilatuak", "heroCarousel": "Hasierako karrusela", "gearLabel": "Gaia"},
+    is: {"title": "Þemastillingar", "subtitle": "Sérsníddu útlit safnsins þíns. Breytingar vistast sjálfkrafa.", "branding": "Vörumerki og stíll", "colour": "Litur og þema", "homeCar": "Heim og hringekja", "sidebar": "Hliðarvalmyndir", "appName": "Heiti forrits", "appNameHint": "Skildu eftir autt fyrir sjálfgefið heiti.", "logoUrl": "Slóð á sérsniðið merki", "logoHint": "Skildu eftir autt fyrir sjálfgefið merki.", "accent": "Áherslulitur", "baseTheme": "Grunnþema", "mainFont": "Aðalletur", "carousel": "Sjálfvirk hringekjuskipting", "carouselHint": "Sekúndur milli glæra. 0 til að slökkva.", "customSeries": "Útvíkkaðar nýlegar seríur", "seriesCount": "Fjöldi nýlegra sería", "seriesCountHint": "Hversu margar seríur birtast í útvíkkuðu hillunni.", "hideShelves": "Fela hillur forsíðu", "sidebarHint": "Feldu hliðarvalmyndaratriði sem þú notar ekki.", "showAppName": "Sýna heiti forrits", "colorizeLogo": "Lita merkið með áherslulitnum", "hideSeries": "Fela Seríur", "hideCollections": "Fela Söfn", "hideAuthors": "Fela Höfunda", "hideNarrators": "Fela Lesara", "hideStats": "Fela Tölfræði", "hideRecentlyAdded": "Fela Nýlega bætt við", "hideRecentSeries": "Fela Nýlegar seríur", "hideContinueSeries": "Fela Halda áfram með seríu", "hideListenAgain": "Fela Hlusta aftur", "hideDiscover": "Fela Uppgötva", "hideNewestAuthors": "Fela Nýjustu höfunda", "seriesCards": "Staflaðar seríukápur", "heroCarousel": "Hringekja forsíðu", "gearLabel": "Þema"},
+    ja: {"title": "テーマのカスタマイズ", "subtitle": "ライブラリの外観をカスタマイズします。変更は自動的に保存されます。", "branding": "ブランドとスタイル", "colour": "カラーとテーマ", "homeCar": "ホームとカルーセル", "sidebar": "サイドメニュー", "appName": "アプリ名", "appNameHint": "デフォルト名を使う場合は空欄のままにします。", "logoUrl": "カスタムロゴURL", "logoHint": "デフォルトロゴを使う場合は空欄のままにします。", "accent": "アクセントカラー", "baseTheme": "ベーステーマ", "mainFont": "メインフォント", "carousel": "カルーセル自動送り", "carouselHint": "スライド間の秒数。0で無効。", "customSeries": "拡張された最近のシリーズ", "seriesCount": "最近のシリーズ数", "seriesCountHint": "拡張シェルフに表示するシリーズ数。", "hideShelves": "ホームのシェルフを非表示", "sidebarHint": "使わないサイドメニュー項目を非表示にします。", "showAppName": "アプリ名を表示", "colorizeLogo": "ロゴをアクセントカラーで着色", "hideSeries": "シリーズを非表示", "hideCollections": "コレクションを非表示", "hideAuthors": "著者を非表示", "hideNarrators": "ナレーターを非表示", "hideStats": "統計を非表示", "hideRecentlyAdded": "最近追加を非表示", "hideRecentSeries": "最近のシリーズを非表示", "hideContinueSeries": "シリーズを続けるを非表示", "hideListenAgain": "もう一度聴くを非表示", "hideDiscover": "見つけるを非表示", "hideNewestAuthors": "最新の著者を非表示", "seriesCards": "重ねたシリーズカバー", "heroCarousel": "ホームカルーセル", "gearLabel": "テーマ"},
+    ko: {"title": "테마 사용자화", "subtitle": "라이브러리 모양을 개인화하세요. 변경 사항은 자동으로 저장됩니다.", "branding": "브랜딩 및 스타일", "colour": "색상 및 테마", "homeCar": "홈 및 캐러셀", "sidebar": "사이드 메뉴", "appName": "앱 이름", "appNameHint": "기본 이름을 사용하려면 비워 두세요.", "logoUrl": "사용자 지정 로고 URL", "logoHint": "기본 로고를 사용하려면 비워 두세요.", "accent": "강조 색상", "baseTheme": "기본 테마", "mainFont": "기본 글꼴", "carousel": "캐러셀 자동 전환", "carouselHint": "슬라이드 간 초. 0이면 비활성화.", "customSeries": "확장된 최근 시리즈", "seriesCount": "최근 시리즈 수", "seriesCountHint": "확장 선반에 표시할 시리즈 수.", "hideShelves": "홈 선반 숨기기", "sidebarHint": "사용하지 않는 사이드 메뉴 항목을 숨깁니다.", "showAppName": "앱 이름 표시", "colorizeLogo": "로고를 강조 색상으로 칠하기", "hideSeries": "시리즈 숨기기", "hideCollections": "컬렉션 숨기기", "hideAuthors": "저자 숨기기", "hideNarrators": "낭독자 숨기기", "hideStats": "통계 숨기기", "hideRecentlyAdded": "최근 추가 숨기기", "hideRecentSeries": "최근 시리즈 숨기기", "hideContinueSeries": "시리즈 계속 숨기기", "hideListenAgain": "다시 듣기 숨기기", "hideDiscover": "발견 숨기기", "hideNewestAuthors": "최신 저자 숨기기", "seriesCards": "겹쳐진 시리즈 표지", "heroCarousel": "홈 캐러셀", "gearLabel": "테마"},
+    zh: {"title": "主题自定义", "subtitle": "个性化你的媒体库外观。更改会自动保存。", "branding": "品牌与样式", "colour": "颜色与主题", "homeCar": "主页与轮播", "sidebar": "侧边菜单", "appName": "应用名称", "appNameHint": "留空则使用默认名称。", "logoUrl": "自定义徽标 URL", "logoHint": "留空则使用默认徽标。", "accent": "强调色", "baseTheme": "基础主题", "mainFont": "主字体", "carousel": "轮播自动切换", "carouselHint": "幻灯片间隔秒数。设为 0 可禁用。", "customSeries": "扩展的最近系列", "seriesCount": "最近系列数量", "seriesCountHint": "扩展书架中显示的系列数量。", "hideShelves": "隐藏主页书架", "sidebarHint": "隐藏不使用的侧边菜单项。", "showAppName": "显示应用名称", "colorizeLogo": "用强调色为徽标着色", "hideSeries": "隐藏系列", "hideCollections": "隐藏收藏", "hideAuthors": "隐藏作者", "hideNarrators": "隐藏朗读者", "hideStats": "隐藏统计", "hideRecentlyAdded": "隐藏最近添加", "hideRecentSeries": "隐藏最近系列", "hideContinueSeries": "隐藏继续系列", "hideListenAgain": "隐藏再听一次", "hideDiscover": "隐藏发现", "hideNewestAuthors": "隐藏最新作者", "seriesCards": "堆叠系列封面", "heroCarousel": "主页轮播", "gearLabel": "主题"},
+    ar: {"title": "تخصيص السمة", "subtitle": "خصص مظهر مكتبتك. تُحفظ التغييرات تلقائيًا.", "branding": "العلامة والأسلوب", "colour": "اللون والسمة", "homeCar": "الرئيسية والشريط الدوار", "sidebar": "القوائم الجانبية", "appName": "اسم التطبيق", "appNameHint": "اتركه فارغًا للاسم الافتراضي.", "logoUrl": "رابط شعار مخصص", "logoHint": "اتركه فارغًا للشعار الافتراضي.", "accent": "لون التمييز", "baseTheme": "السمة الأساسية", "mainFont": "الخط الرئيسي", "carousel": "التقدم التلقائي للشريط الدوار", "carouselHint": "الثواني بين الشرائح. 0 للتعطيل.", "customSeries": "السلاسل الأخيرة الموسعة", "seriesCount": "عدد السلاسل الأخيرة", "seriesCountHint": "عدد السلاسل المعروضة في الرف الموسع.", "hideShelves": "إخفاء أرفف الصفحة الرئيسية", "sidebarHint": "أخفِ عناصر القائمة الجانبية التي لا تستخدمها.", "showAppName": "إظهار اسم التطبيق", "colorizeLogo": "تلوين الشعار بلون التمييز", "hideSeries": "إخفاء السلاسل", "hideCollections": "إخفاء المجموعات", "hideAuthors": "إخفاء المؤلفين", "hideNarrators": "إخفاء الرواة", "hideStats": "إخفاء الإحصائيات", "hideRecentlyAdded": "إخفاء المضاف حديثًا", "hideRecentSeries": "إخفاء السلاسل الأخيرة", "hideContinueSeries": "إخفاء متابعة السلسلة", "hideListenAgain": "إخفاء الاستماع مجددًا", "hideDiscover": "إخفاء الاستكشاف", "hideNewestAuthors": "إخفاء أحدث المؤلفين", "seriesCards": "أغلفة سلاسل متراكبة", "heroCarousel": "الشريط الدوار للرئيسية", "gearLabel": "السمة"},
+    he: {"title": "התאמות ערכת נושא", "subtitle": "התאם אישית את מראה הספרייה שלך. השינויים נשמרים אוטומטית.", "branding": "מיתוג וסגנון", "colour": "צבע וערכת נושא", "homeCar": "דף הבית וקרוסלה", "sidebar": "תפריטי צד", "appName": "שם האפליקציה", "appNameHint": "השאר ריק לשם ברירת המחדל.", "logoUrl": "כתובת לוגו מותאם אישית", "logoHint": "השאר ריק ללוגו ברירת המחדל.", "accent": "צבע הדגשה", "baseTheme": "ערכת נושא בסיסית", "mainFont": "גופן ראשי", "carousel": "קידום אוטומטי של הקרוסלה", "carouselHint": "שניות בין שקופיות. 0 לביטול.", "customSeries": "סדרות אחרונות מורחבות", "seriesCount": "מספר סדרות אחרונות", "seriesCountHint": "כמה סדרות להציג במדף המורחב.", "hideShelves": "הסתר מדפי דף הבית", "sidebarHint": "הסתר פריטי תפריט צד שאינך משתמש בהם.", "showAppName": "הצג את שם האפליקציה", "colorizeLogo": "צבע את הלוגו בצבע ההדגשה", "hideSeries": "הסתר סדרות", "hideCollections": "הסתר אוספים", "hideAuthors": "הסתר מחברים", "hideNarrators": "הסתר מקריאים", "hideStats": "הסתר סטטיסטיקות", "hideRecentlyAdded": "הסתר נוספו לאחרונה", "hideRecentSeries": "הסתר סדרות אחרונות", "hideContinueSeries": "הסתר המשך סדרה", "hideListenAgain": "הסתר האזן שוב", "hideDiscover": "הסתר גלה", "hideNewestAuthors": "הסתר מחברים חדשים", "seriesCards": "כריכות סדרה בערימה", "heroCarousel": "קרוסלת דף הבית", "gearLabel": "ערכת נושא"},
+    fa: {"title": "شخصی‌سازی پوسته", "subtitle": "ظاهر کتابخانه خود را شخصی‌سازی کنید. تغییرات به‌طور خودکار ذخیره می‌شوند.", "branding": "برند و سبک", "colour": "رنگ و پوسته", "homeCar": "خانه و چرخ‌ونما", "sidebar": "منوهای کناری", "appName": "نام برنامه", "appNameHint": "برای نام پیش‌فرض خالی بگذارید.", "logoUrl": "نشانی لوگوی سفارشی", "logoHint": "برای لوگوی پیش‌فرض خالی بگذارید.", "accent": "رنگ تأکید", "baseTheme": "پوسته پایه", "mainFont": "قلم اصلی", "carousel": "پیشروی خودکار چرخ‌ونما", "carouselHint": "ثانیه بین اسلایدها. برای غیرفعال‌سازی 0.", "customSeries": "سری‌های اخیر گسترش‌یافته", "seriesCount": "تعداد سری‌های اخیر", "seriesCountHint": "چند سری در قفسه گسترش‌یافته نمایش داده شود.", "hideShelves": "پنهان‌کردن قفسه‌های صفحه اصلی", "sidebarHint": "موارد منوی کناری که استفاده نمی‌کنید را پنهان کنید.", "showAppName": "نمایش نام برنامه", "colorizeLogo": "رنگ‌آمیزی لوگو با رنگ تأکید", "hideSeries": "پنهان‌کردن سری‌ها", "hideCollections": "پنهان‌کردن مجموعه‌ها", "hideAuthors": "پنهان‌کردن نویسندگان", "hideNarrators": "پنهان‌کردن گویندگان", "hideStats": "پنهان‌کردن آمار", "hideRecentlyAdded": "پنهان‌کردن به‌تازگی افزوده‌شده", "hideRecentSeries": "پنهان‌کردن سری‌های اخیر", "hideContinueSeries": "پنهان‌کردن ادامه سری", "hideListenAgain": "پنهان‌کردن دوباره گوش کن", "hideDiscover": "پنهان‌کردن کشف", "hideNewestAuthors": "پنهان‌کردن جدیدترین نویسندگان", "seriesCards": "جلدهای سری روی‌هم", "heroCarousel": "چرخ‌ونمای صفحه اصلی", "gearLabel": "پوسته"},
+    hi: {"title": "थीम अनुकूलन", "subtitle": "अपनी लाइब्रेरी का रूप वैयक्तिकृत करें। परिवर्तन स्वतः सहेजे जाते हैं।", "branding": "ब्रांडिंग और शैली", "colour": "रंग और थीम", "homeCar": "होम और कैरोसेल", "sidebar": "साइड मेनू", "appName": "ऐप का नाम", "appNameHint": "डिफ़ॉल्ट नाम के लिए खाली छोड़ें।", "logoUrl": "कस्टम लोगो URL", "logoHint": "डिफ़ॉल्ट लोगो के लिए खाली छोड़ें।", "accent": "एक्सेंट रंग", "baseTheme": "मूल थीम", "mainFont": "मुख्य फ़ॉन्ट", "carousel": "कैरोसेल स्वतः आगे बढ़ना", "carouselHint": "स्लाइडों के बीच सेकंड। बंद करने के लिए 0।", "customSeries": "विस्तारित हाल की श्रृंखलाएँ", "seriesCount": "हाल की श्रृंखलाओं की संख्या", "seriesCountHint": "विस्तारित शेल्फ़ में कितनी श्रृंखलाएँ दिखाएँ।", "hideShelves": "होमपेज शेल्फ़ छिपाएँ", "sidebarHint": "साइड मेनू की अनुपयोगी प्रविष्टियाँ छिपाएँ।", "showAppName": "ऐप का नाम दिखाएँ", "colorizeLogo": "लोगो को एक्सेंट रंग से रंगें", "hideSeries": "श्रृंखलाएँ छिपाएँ", "hideCollections": "संग्रह छिपाएँ", "hideAuthors": "लेखक छिपाएँ", "hideNarrators": "वाचक छिपाएँ", "hideStats": "आँकड़े छिपाएँ", "hideRecentlyAdded": "हाल में जोड़े गए छिपाएँ", "hideRecentSeries": "हाल की श्रृंखलाएँ छिपाएँ", "hideContinueSeries": "श्रृंखला जारी रखें छिपाएँ", "hideListenAgain": "फिर से सुनें छिपाएँ", "hideDiscover": "खोजें छिपाएँ", "hideNewestAuthors": "नवीनतम लेखक छिपाएँ", "seriesCards": "परतदार श्रृंखला कवर", "heroCarousel": "होम कैरोसेल", "gearLabel": "थीम"},
+    bn: {"title": "থিম কাস্টমাইজেশন", "subtitle": "আপনার লাইব্রেরির চেহারা ব্যক্তিগতকৃত করুন। পরিবর্তন স্বয়ংক্রিয়ভাবে সংরক্ষিত হয়।", "branding": "ব্র্যান্ডিং ও শৈলী", "colour": "রঙ ও থিম", "homeCar": "হোম ও ক্যারোজেল", "sidebar": "সাইড মেনু", "appName": "অ্যাপের নাম", "appNameHint": "ডিফল্ট নামের জন্য খালি রাখুন।", "logoUrl": "কাস্টম লোগো URL", "logoHint": "ডিফল্ট লোগোর জন্য খালি রাখুন।", "accent": "অ্যাকসেন্ট রঙ", "baseTheme": "মূল থিম", "mainFont": "প্রধান ফন্ট", "carousel": "ক্যারোজেল স্বয়ংক্রিয় অগ্রগতি", "carouselHint": "স্লাইডের মধ্যে সেকেন্ড। বন্ধ করতে 0।", "customSeries": "সম্প্রসারিত সাম্প্রতিক সিরিজ", "seriesCount": "সাম্প্রতিক সিরিজের সংখ্যা", "seriesCountHint": "সম্প্রসারিত তাকে কতটি সিরিজ দেখানো হবে।", "hideShelves": "হোমপেজের তাক লুকান", "sidebarHint": "অব্যবহৃত সাইড মেনু আইটেম লুকান।", "showAppName": "অ্যাপের নাম দেখান", "colorizeLogo": "লোগোকে অ্যাকসেন্ট রঙে রাঙান", "hideSeries": "সিরিজ লুকান", "hideCollections": "সংগ্রহ লুকান", "hideAuthors": "লেখক লুকান", "hideNarrators": "পাঠক লুকান", "hideStats": "পরিসংখ্যান লুকান", "hideRecentlyAdded": "সম্প্রতি যোগ করা লুকান", "hideRecentSeries": "সাম্প্রতিক সিরিজ লুকান", "hideContinueSeries": "সিরিজ চালিয়ে যান লুকান", "hideListenAgain": "আবার শুনুন লুকান", "hideDiscover": "আবিষ্কার লুকান", "hideNewestAuthors": "নতুনতম লেখক লুকান", "seriesCards": "স্তূপীকৃত সিরিজ কভার", "heroCarousel": "হোম ক্যারোজেল", "gearLabel": "থিম"},
+    gu: {"title": "થીમ કસ્ટમાઇઝેશન", "subtitle": "તમારી લાઇબ્રેરીનો દેખાવ વ્યક્તિગત બનાવો. ફેરફારો આપમેળે સાચવાય છે.", "branding": "બ્રાન્ડિંગ અને શૈલી", "colour": "રંગ અને થીમ", "homeCar": "હોમ અને કેરોસેલ", "sidebar": "સાઇડ મેનૂ", "appName": "એપ્લિકેશનનું નામ", "appNameHint": "ડિફૉલ્ટ નામ માટે ખાલી છોડો.", "logoUrl": "કસ્ટમ લોગો URL", "logoHint": "ડિફૉલ્ટ લોગો માટે ખાલી છોડો.", "accent": "એક્સેન્ટ રંગ", "baseTheme": "મૂળ થીમ", "mainFont": "મુખ્ય ફૉન્ટ", "carousel": "કેરોસેલ સ્વયં આગળ વધવું", "carouselHint": "સ્લાઇડ્સ વચ્ચે સેકંડ. બંધ કરવા 0.", "customSeries": "વિસ્તૃત તાજેતરની શ્રેણીઓ", "seriesCount": "તાજેતરની શ્રેણીઓની સંખ્યા", "seriesCountHint": "વિસ્તૃત શેલ્ફમાં કેટલી શ્રેણીઓ બતાવવી.", "hideShelves": "હોમપેજ શેલ્ફ છુપાવો", "sidebarHint": "ન વપરાતી સાઇડ મેનૂ આઇટમ છુપાવો.", "showAppName": "એપ્લિકેશનનું નામ બતાવો", "colorizeLogo": "લોગોને એક્સેન્ટ રંગથી રંગો", "hideSeries": "શ્રેણીઓ છુપાવો", "hideCollections": "સંગ્રહો છુપાવો", "hideAuthors": "લેખકો છુપાવો", "hideNarrators": "વાચકો છુપાવો", "hideStats": "આંકડા છુપાવો", "hideRecentlyAdded": "તાજેતરમાં ઉમેરાયેલ છુપાવો", "hideRecentSeries": "તાજેતરની શ્રેણીઓ છુપાવો", "hideContinueSeries": "શ્રેણી ચાલુ રાખો છુપાવો", "hideListenAgain": "ફરી સાંભળો છુપાવો", "hideDiscover": "શોધો છુપાવો", "hideNewestAuthors": "નવીનતમ લેખકો છુપાવો", "seriesCards": "સ્તરબદ્ધ શ્રેણી કવર", "heroCarousel": "હોમ કેરોસેલ", "gearLabel": "થીમ"},
+    vi: {"title": "Tùy chỉnh giao diện", "subtitle": "Cá nhân hóa giao diện thư viện của bạn. Thay đổi được lưu tự động.", "branding": "Thương hiệu & phong cách", "colour": "Màu sắc & giao diện", "homeCar": "Trang chủ & băng chuyền", "sidebar": "Menu bên", "appName": "Tên ứng dụng", "appNameHint": "Để trống để dùng tên mặc định.", "logoUrl": "URL logo tùy chỉnh", "logoHint": "Để trống để dùng logo mặc định.", "accent": "Màu nhấn", "baseTheme": "Giao diện cơ bản", "mainFont": "Phông chữ chính", "carousel": "Tự động chuyển băng chuyền", "carouselHint": "Số giây giữa các slide. 0 để tắt.", "customSeries": "Bộ truyện gần đây mở rộng", "seriesCount": "Số bộ truyện gần đây", "seriesCountHint": "Số bộ truyện hiển thị trên kệ mở rộng.", "hideShelves": "Ẩn các kệ trang chủ", "sidebarHint": "Ẩn các mục menu bên bạn không dùng.", "showAppName": "Hiện tên ứng dụng", "colorizeLogo": "Tô màu logo bằng màu nhấn", "hideSeries": "Ẩn Bộ truyện", "hideCollections": "Ẩn Bộ sưu tập", "hideAuthors": "Ẩn Tác giả", "hideNarrators": "Ẩn Người đọc", "hideStats": "Ẩn Thống kê", "hideRecentlyAdded": "Ẩn Mới thêm gần đây", "hideRecentSeries": "Ẩn Bộ truyện gần đây", "hideContinueSeries": "Ẩn Tiếp tục bộ truyện", "hideListenAgain": "Ẩn Nghe lại", "hideDiscover": "Ẩn Khám phá", "hideNewestAuthors": "Ẩn Tác giả mới nhất", "seriesCards": "Bìa bộ truyện xếp chồng", "heroCarousel": "Băng chuyền trang chủ", "gearLabel": "Giao diện"}
   };
   function panelT() {
     const lang = getUserLanguage().split('-')[0].toLowerCase();
@@ -413,7 +441,7 @@
     }
   }
 
-  function createCustomizationsPanel(configPage, hideBranding = false) {
+  function createCustomizationsPanel(configPage, hideBranding = false, isConfigPage = false) {
     injectPanelStyles();
 
     const panel = document.createElement('div');
@@ -482,6 +510,9 @@
             <input type="number" id="nh-in-carousel" min="0" step="5">
           </div>
           <div class="nh-field" id="nh-tog-customseries"></div>
+          <div class="nh-field" id="nh-tog-seriescards"></div>
+          <div class="nh-field" id="nh-tog-herocarousel"></div>
+          <div class="nh-field"><label class="nh-label" id="nh-cr-label"></label><div id="nh-sel-crmode"></div></div>
           <div class="nh-field">
             <label class="nh-label">${T.seriesCount}</label>
             <p class="nh-hint">${T.seriesCountHint}</p>
@@ -549,6 +580,24 @@
     bindInput('#nh-in-carousel', 'carouselTiming');
     bindInput('#nh-in-series-count', 'recentSeriesCount');
     panel.querySelector('#nh-tog-customseries').appendChild(createToggle(T.customSeries, 'showCustomRecentSeries'));
+    panel.querySelector('#nh-tog-seriescards').appendChild(createToggle(T.seriesCards || PANEL_T.en.seriesCards, 'customSeriesCards'));
+    panel.querySelector('#nh-tog-herocarousel').appendChild(createToggle(T.heroCarousel || PANEL_T.en.heroCarousel, 'showHeroCarousel'));
+    panel.querySelector('#nh-cr-label').textContent = T.crMode || PANEL_T.en.crMode;
+    (function () {
+      const sel = document.createElement('select');
+      sel.className = 'nh-er-select';
+      [['combine', T.crCombine || PANEL_T.en.crCombine], ['separate', T.crSeparate || PANEL_T.en.crSeparate], ['hide', T.crHide || PANEL_T.en.crHide]].forEach(function (o) {
+        const opt = document.createElement('option');
+        opt.value = o[0]; opt.textContent = o[1];
+        sel.appendChild(opt);
+      });
+      sel.value = nhSettings.continueReadingMode || 'combine';
+      sel.addEventListener('change', function () {
+        nhSettings.continueReadingMode = sel.value;
+        saveSettings(); applySettings();
+      });
+      panel.querySelector('#nh-sel-crmode').appendChild(sel);
+    })();
 
     const customPicker = panel.querySelector('#nh-in-color');
     customPicker.addEventListener('input', (e) => {
@@ -569,6 +618,67 @@
     if (hideBranding) {
       const brandingCard = panel.querySelector('#nh-in-name');
       if (brandingCard) { const card = brandingCard.closest('.nh-card'); if (card) card.style.display = 'none'; }
+    }
+
+    // Server defaults — admins, config page only (not the quick modal). Saves the
+    // current settings to the proxy (/data/nh volume) via an admin-authenticated PUT;
+    // nginx injects the file into every page before first paint.
+    if (isConfigPage && isUserAdmin()) {
+      const sec = document.createElement('section');
+      sec.className = 'nh-card';
+      sec.innerHTML = '<h2 class="nh-card-title">' + (T.srvTitle || PANEL_T.en.srvTitle) + '</h2>' +
+        '<p class="nh-hint" style="margin-bottom:14px;">' + (T.srvHint || PANEL_T.en.srvHint) + '</p>' +
+        '<div style="display:flex; gap:12px; flex-wrap:wrap;">' +
+        '<button type="button" id="nh-srv-save" style="background: var(--nh-amber, #e0c27a); color: #14110d; border: none; border-radius: 10px; padding: 10px 22px; font-weight: 600; cursor: pointer;">' + (T.srvSave || PANEL_T.en.srvSave) + '</button>' +
+        '<button type="button" id="nh-srv-clear" style="background: transparent; color: var(--nh-muted-2, #a99f8f); border: 1px solid var(--nh-hairline, rgba(255,255,255,0.15)); border-radius: 10px; padding: 10px 22px; font-weight: 600; cursor: pointer;">' + (T.srvClear || PANEL_T.en.srvClear) + '</button>' +
+        '</div>';
+      (panel.querySelector('.nh-grid') || panel).appendChild(sec);
+
+      const flashBtn = function (btn, msg) {
+        const orig = btn.dataset.nhOrig || btn.textContent;
+        btn.dataset.nhOrig = orig;
+        btn.textContent = msg;
+        setTimeout(function () { btn.textContent = orig; }, 2500);
+      };
+      const nhAbsToken = function () {
+        try {
+          const st = window.$nuxt.$store;
+          return st.getters['user/getToken'] || (st.state.user.user && (st.state.user.user.accessToken || st.state.user.user.token)) || '';
+        } catch (e) { return ''; }
+      };
+      const putServerConfig = function (obj, btn, okText) {
+        const clean = {};
+        Object.keys(obj).forEach(function (k) {
+          const v = obj[k];
+          clean[k] = (typeof v === 'string') ? v.replace(/[<>]/g, '') : v;
+        });
+        fetch('/_nh/data/server-config.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + nhAbsToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(clean)
+        }).then(function (r) {
+          flashBtn(btn, r.ok ? okText : (T.srvErr || PANEL_T.en.srvErr));
+        }).catch(function () { flashBtn(btn, T.srvErr || PANEL_T.en.srvErr); });
+      };
+      sec.querySelector('#nh-srv-save').addEventListener('click', function (e) {
+        putServerConfig(nhSettings, e.target, T.srvSaved || PANEL_T.en.srvSaved);
+      });
+      sec.querySelector('#nh-srv-clear').addEventListener('click', function (e) {
+        const btn = e.target;
+        const clean = {};
+        fetch('/_nh/data/server-config.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + nhAbsToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify(clean)
+        }).then(function (r) {
+          if (!r.ok) { flashBtn(btn, T.srvErr || PANEL_T.en.srvErr); return; }
+          // Also drop this browser's personal overrides so the admin lands on the
+          // true stock look — server clear alone can't touch localStorage.
+          try { localStorage.removeItem('nh-settings'); } catch (err) {}
+          flashBtn(btn, T.srvCleared || PANEL_T.en.srvCleared);
+          setTimeout(function () { window.location.reload(); }, 700);
+        }).catch(function () { flashBtn(btn, T.srvErr || PANEL_T.en.srvErr); });
+      });
     }
 
     return panel;
@@ -716,7 +826,7 @@
     let panel = document.querySelector('#nh-settings-panel:not(#nh-settings-modal #nh-settings-panel)');
 
     if (wantCustom) {
-      if (!panel) panel = createCustomizationsPanel(configPage);
+      if (!panel) panel = createCustomizationsPanel(configPage, false, true);
       panel.style.display = '';
       Array.from(configPage.children).forEach(ch => {
         if (ch !== panel && ch.style.display !== 'none') {
@@ -785,10 +895,46 @@
   const getTranslations = (langCode) => {
     const baseLang = langCode.split('-')[0].toLowerCase();
     const dictionary = {
-      en: { morning: 'GOOD MORNING', afternoon: 'GOOD AFTERNOON', evening: 'GOOD EVENING', welcome: 'Welcome back', pickup: 'Pick up where you left off', by: 'by', continue: 'Continue', left: 'left', narratedBy: 'Narrated by', unknown: 'Unknown Title', fallbackDesc: 'Resume your current audiobook.' },
-      pl: { morning: 'DZIEŃ DOBRY', afternoon: 'DOBREGO POPOŁUDNIA', evening: 'DOBRY WIECZÓR', welcome: 'Witaj ponownie', pickup: 'Wróć do słuchania', by: '', continue: 'Kontynuuj', left: 'pozostało', narratedBy: 'Czyta', unknown: 'Nieznany tytuł', fallbackDesc: 'Wznów słuchanie obecnego audiobooka.' },
-      de: { morning: 'GUTEN MORGEN', afternoon: 'GUTEN TAG', evening: 'GUTEN ABEND', welcome: 'Willkommen zurück', pickup: 'Mache da weiter, wo du aufgehört hast', by: 'von', continue: 'Weiter', left: 'verbleibend', narratedBy: 'Gelesen von', unknown: 'Unbekannter Titel', fallbackDesc: 'Setze dein aktuelles Hörbuch fort.' },
-      fr: { morning: 'BONJOUR', afternoon: 'BON APRÈS-MIDI', evening: 'BONSOIR', welcome: 'Bon retour', pickup: 'Reprenez là où vous vous étiez arrêté', by: 'de', continue: 'Continuer', left: 'restant', narratedBy: 'Lu par', unknown: 'Titre inconnu', fallbackDesc: 'Reprenez votre livre audio actuel.' }
+      en: {"morning": "GOOD MORNING", "afternoon": "GOOD AFTERNOON", "evening": "GOOD EVENING", "welcome": "Welcome back", "pickup": "Pick up where you left off", "by": "by", "continue": "Continue", "left": "left", "narratedBy": "Narrated by", "unknown": "Unknown Title", "fallbackDesc": "Resume your current audiobook."},
+      pl: {"morning": "DZIEŃ DOBRY", "afternoon": "DOBREGO POPOŁUDNIA", "evening": "DOBRY WIECZÓR", "welcome": "Witaj ponownie", "pickup": "Wróć do słuchania", "by": "", "continue": "Kontynuuj", "left": "pozostało", "narratedBy": "Czyta", "unknown": "Nieznany tytuł", "fallbackDesc": "Wznów słuchanie obecnego audiobooka."},
+      de: {"morning": "GUTEN MORGEN", "afternoon": "GUTEN TAG", "evening": "GUTEN ABEND", "welcome": "Willkommen zurück", "pickup": "Mache da weiter, wo du aufgehört hast", "by": "von", "continue": "Weiter", "left": "verbleibend", "narratedBy": "Gelesen von", "unknown": "Unbekannter Titel", "fallbackDesc": "Setze dein aktuelles Hörbuch fort."},
+      fr: {"morning": "BONJOUR", "afternoon": "BON APRÈS-MIDI", "evening": "BONSOIR", "welcome": "Bon retour", "pickup": "Reprenez là où vous vous étiez arrêté", "by": "de", "continue": "Continuer", "left": "restant", "narratedBy": "Lu par", "unknown": "Titre inconnu", "fallbackDesc": "Reprenez votre livre audio actuel."},
+      es: {"morning": "BUENOS DÍAS", "afternoon": "BUENAS TARDES", "evening": "BUENAS NOCHES", "welcome": "Bienvenido de nuevo", "pickup": "Continúa donde lo dejaste", "by": "de", "continue": "Continuar", "left": "restante", "narratedBy": "Narrado por", "unknown": "Título desconocido", "fallbackDesc": "Reanuda tu audiolibro actual."},
+      it: {"morning": "BUONGIORNO", "afternoon": "BUON POMERIGGIO", "evening": "BUONASERA", "welcome": "Bentornato", "pickup": "Riprendi da dove avevi interrotto", "by": "di", "continue": "Continua", "left": "rimanente", "narratedBy": "Narrato da", "unknown": "Titolo sconosciuto", "fallbackDesc": "Riprendi il tuo audiolibro attuale."},
+      pt: {"morning": "BOM DIA", "afternoon": "BOA TARDE", "evening": "BOA NOITE", "welcome": "Bem-vindo de volta", "pickup": "Continue de onde parou", "by": "de", "continue": "Continuar", "left": "restante", "narratedBy": "Narrado por", "unknown": "Título desconhecido", "fallbackDesc": "Retome seu audiolivro atual."},
+      nl: {"morning": "GOEDEMORGEN", "afternoon": "GOEDEMIDDAG", "evening": "GOEDENAVOND", "welcome": "Welkom terug", "pickup": "Ga verder waar je gebleven was", "by": "door", "continue": "Doorgaan", "left": "resterend", "narratedBy": "Verteld door", "unknown": "Onbekende titel", "fallbackDesc": "Hervat je huidige luisterboek."},
+      cs: {"morning": "DOBRÉ RÁNO", "afternoon": "DOBRÉ ODPOLEDNE", "evening": "DOBRÝ VEČER", "welcome": "Vítejte zpět", "pickup": "Pokračujte tam, kde jste skončili", "by": "od", "continue": "Pokračovat", "left": "zbývá", "narratedBy": "Čte", "unknown": "Neznámý název", "fallbackDesc": "Pokračujte ve své aktuální audioknize."},
+      sk: {"morning": "DOBRÉ RÁNO", "afternoon": "DOBRÉ POPOLUDNIE", "evening": "DOBRÝ VEČER", "welcome": "Vitajte späť", "pickup": "Pokračujte tam, kde ste skončili", "by": "od", "continue": "Pokračovať", "left": "zostáva", "narratedBy": "Číta", "unknown": "Neznámy názov", "fallbackDesc": "Pokračujte vo svojej aktuálnej audioknihe."},
+      da: {"morning": "GODMORGEN", "afternoon": "GOD EFTERMIDDAG", "evening": "GODAFTEN", "welcome": "Velkommen tilbage", "pickup": "Fortsæt hvor du slap", "by": "af", "continue": "Fortsæt", "left": "tilbage", "narratedBy": "Fortalt af", "unknown": "Ukendt titel", "fallbackDesc": "Genoptag din aktuelle lydbog."},
+      sv: {"morning": "GOD MORGON", "afternoon": "GOD EFTERMIDDAG", "evening": "GOD KVÄLL", "welcome": "Välkommen tillbaka", "pickup": "Fortsätt där du slutade", "by": "av", "continue": "Fortsätt", "left": "kvar", "narratedBy": "Uppläst av", "unknown": "Okänd titel", "fallbackDesc": "Återuppta din nuvarande ljudbok."},
+      no: {"morning": "GOD MORGEN", "afternoon": "GOD ETTERMIDDAG", "evening": "GOD KVELD", "welcome": "Velkommen tilbake", "pickup": "Fortsett der du slapp", "by": "av", "continue": "Fortsett", "left": "igjen", "narratedBy": "Fortalt av", "unknown": "Ukjent tittel", "fallbackDesc": "Gjenoppta din nåværende lydbok."},
+      fi: {"morning": "HYVÄÄ HUOMENTA", "afternoon": "HYVÄÄ PÄIVÄÄ", "evening": "HYVÄÄ ILTAA", "welcome": "Tervetuloa takaisin", "pickup": "Jatka siitä mihin jäit", "by": "–", "continue": "Jatka", "left": "jäljellä", "narratedBy": "Lukija", "unknown": "Tuntematon nimi", "fallbackDesc": "Jatka nykyistä äänikirjaasi."},
+      ru: {"morning": "ДОБРОЕ УТРО", "afternoon": "ДОБРЫЙ ДЕНЬ", "evening": "ДОБРЫЙ ВЕЧЕР", "welcome": "С возвращением", "pickup": "Продолжите с того места, где остановились", "by": "—", "continue": "Продолжить", "left": "осталось", "narratedBy": "Читает", "unknown": "Неизвестное название", "fallbackDesc": "Продолжите текущую аудиокнигу."},
+      uk: {"morning": "ДОБРОГО РАНКУ", "afternoon": "ДОБРОГО ДНЯ", "evening": "ДОБРОГО ВЕЧОРА", "welcome": "З поверненням", "pickup": "Продовжте з того місця, де зупинилися", "by": "—", "continue": "Продовжити", "left": "залишилося", "narratedBy": "Читає", "unknown": "Невідома назва", "fallbackDesc": "Продовжте свою поточну аудіокнигу."},
+      be: {"morning": "ДОБРАЙ РАНІЦЫ", "afternoon": "ДОБРЫ ДЗЕНЬ", "evening": "ДОБРЫ ВЕЧАР", "welcome": "З вяртаннем", "pickup": "Працягніце з таго месца, дзе спыніліся", "by": "—", "continue": "Працягнуць", "left": "засталося", "narratedBy": "Чытае", "unknown": "Невядомая назва", "fallbackDesc": "Працягніце сваю бягучую аўдыякнігу."},
+      bg: {"morning": "ДОБРО УТРО", "afternoon": "ДОБЪР ДЕН", "evening": "ДОБЪР ВЕЧЕР", "welcome": "Добре дошли отново", "pickup": "Продължете откъдето спряхте", "by": "от", "continue": "Продължи", "left": "остават", "narratedBy": "Разказва", "unknown": "Неизвестно заглавие", "fallbackDesc": "Продължете текущата си аудиокнига."},
+      hr: {"morning": "DOBRO JUTRO", "afternoon": "DOBAR DAN", "evening": "DOBRA VEČER", "welcome": "Dobrodošli natrag", "pickup": "Nastavite gdje ste stali", "by": "od", "continue": "Nastavi", "left": "preostalo", "narratedBy": "Pripovijeda", "unknown": "Nepoznat naslov", "fallbackDesc": "Nastavite svoju trenutnu audioknjigu."},
+      sl: {"morning": "DOBRO JUTRO", "afternoon": "DOBER DAN", "evening": "DOBER VEČER", "welcome": "Dobrodošli nazaj", "pickup": "Nadaljujte, kjer ste ostali", "by": "od", "continue": "Nadaljuj", "left": "preostalo", "narratedBy": "Pripoveduje", "unknown": "Neznan naslov", "fallbackDesc": "Nadaljujte svojo trenutno zvočno knjigo."},
+      hu: {"morning": "JÓ REGGELT", "afternoon": "JÓ NAPOT", "evening": "JÓ ESTÉT", "welcome": "Üdvözöljük újra", "pickup": "Folytassa ott, ahol abbahagyta", "by": "–", "continue": "Folytatás", "left": "van hátra", "narratedBy": "Felolvassa", "unknown": "Ismeretlen cím", "fallbackDesc": "Folytassa jelenlegi hangoskönyvét."},
+      ro: {"morning": "BUNĂ DIMINEAȚA", "afternoon": "BUNĂ ZIUA", "evening": "BUNĂ SEARA", "welcome": "Bine ați revenit", "pickup": "Continuați de unde ați rămas", "by": "de", "continue": "Continuă", "left": "rămas", "narratedBy": "Narat de", "unknown": "Titlu necunoscut", "fallbackDesc": "Reluați audiobook-ul curent."},
+      lt: {"morning": "LABAS RYTAS", "afternoon": "LABA DIENA", "evening": "LABAS VAKARAS", "welcome": "Sveiki sugrįžę", "pickup": "Tęskite nuo ten, kur baigėte", "by": "–", "continue": "Tęsti", "left": "liko", "narratedBy": "Skaito", "unknown": "Nežinomas pavadinimas", "fallbackDesc": "Tęskite dabartinę garso knygą."},
+      lv: {"morning": "LABRĪT", "afternoon": "LABDIEN", "evening": "LABVAKAR", "welcome": "Laipni lūdzam atpakaļ", "pickup": "Turpiniet no vietas, kur pārtraucāt", "by": "–", "continue": "Turpināt", "left": "atlicis", "narratedBy": "Lasa", "unknown": "Nezināms nosaukums", "fallbackDesc": "Turpiniet savu pašreizējo audiogrāmatu."},
+      et: {"morning": "TERE HOMMIKUST", "afternoon": "TERE PÄEVAST", "evening": "TERE ÕHTUST", "welcome": "Tere tulemast tagasi", "pickup": "Jätkake sealt, kus pooleli jäite", "by": "–", "continue": "Jätka", "left": "jäänud", "narratedBy": "Loeb", "unknown": "Tundmatu pealkiri", "fallbackDesc": "Jätkake oma praegust audioraamatut."},
+      el: {"morning": "ΚΑΛΗΜΕΡΑ", "afternoon": "ΚΑΛΟ ΑΠΟΓΕΥΜΑ", "evening": "ΚΑΛΗΣΠΕΡΑ", "welcome": "Καλώς ήρθατε ξανά", "pickup": "Συνεχίστε από εκεί που σταματήσατε", "by": "του", "continue": "Συνέχεια", "left": "απομένουν", "narratedBy": "Αφήγηση", "unknown": "Άγνωστος τίτλος", "fallbackDesc": "Συνεχίστε το τρέχον ηχητικό σας βιβλίο."},
+      tr: {"morning": "GÜNAYDIN", "afternoon": "İYİ GÜNLER", "evening": "İYİ AKŞAMLAR", "welcome": "Tekrar hoş geldiniz", "pickup": "Kaldığınız yerden devam edin", "by": "–", "continue": "Devam Et", "left": "kaldı", "narratedBy": "Seslendiren", "unknown": "Bilinmeyen Başlık", "fallbackDesc": "Mevcut sesli kitabınıza devam edin."},
+      ca: {"morning": "BON DIA", "afternoon": "BONA TARDA", "evening": "BONA NIT", "welcome": "Benvingut de nou", "pickup": "Continueu on ho vau deixar", "by": "de", "continue": "Continua", "left": "restant", "narratedBy": "Narrat per", "unknown": "Títol desconegut", "fallbackDesc": "Repreneu el vostre audiollibre actual."},
+      eu: {"morning": "EGUN ON", "afternoon": "ARRATSALDE ON", "evening": "GABON", "welcome": "Ongi etorri berriro", "pickup": "Jarraitu utzi zenuen tokitik", "by": "–", "continue": "Jarraitu", "left": "geratzen da", "narratedBy": "Narratzailea", "unknown": "Izenburu ezezaguna", "fallbackDesc": "Jarraitu zure uneko audioliburua."},
+      is: {"morning": "GÓÐAN DAGINN", "afternoon": "GÓÐAN DAG", "evening": "GOTT KVÖLD", "welcome": "Velkomin aftur", "pickup": "Haltu áfram þar sem frá var horfið", "by": "eftir", "continue": "Halda áfram", "left": "eftir", "narratedBy": "Lesari", "unknown": "Óþekktur titill", "fallbackDesc": "Haltu áfram með núverandi hljóðbók."},
+      ja: {"morning": "おはようございます", "afternoon": "こんにちは", "evening": "こんばんは", "welcome": "おかえりなさい", "pickup": "続きから再開しましょう", "by": "著", "continue": "続きを聴く", "left": "残り", "narratedBy": "朗読", "unknown": "不明なタイトル", "fallbackDesc": "現在のオーディオブックを再開します。"},
+      ko: {"morning": "좋은 아침입니다", "afternoon": "좋은 오후입니다", "evening": "좋은 저녁입니다", "welcome": "다시 오신 것을 환영합니다", "pickup": "멈춘 곳에서 이어서 들어보세요", "by": "저자", "continue": "계속 듣기", "left": "남음", "narratedBy": "낭독", "unknown": "알 수 없는 제목", "fallbackDesc": "현재 오디오북을 이어서 들으세요."},
+      zh: {"morning": "早上好", "afternoon": "下午好", "evening": "晚上好", "welcome": "欢迎回来", "pickup": "从上次的位置继续", "by": "作者", "continue": "继续", "left": "剩余", "narratedBy": "朗读", "unknown": "未知标题", "fallbackDesc": "继续收听当前有声书。"},
+      ar: {"morning": "صباح الخير", "afternoon": "مساء الخير", "evening": "مساء الخير", "welcome": "مرحبًا بعودتك", "pickup": "تابع من حيث توقفت", "by": "لـ", "continue": "متابعة", "left": "متبقٍ", "narratedBy": "بصوت", "unknown": "عنوان غير معروف", "fallbackDesc": "استأنف كتابك الصوتي الحالي."},
+      he: {"morning": "בוקר טוב", "afternoon": "צהריים טובים", "evening": "ערב טוב", "welcome": "ברוך שובך", "pickup": "המשך מהמקום שבו הפסקת", "by": "מאת", "continue": "המשך", "left": "נותרו", "narratedBy": "מקריא", "unknown": "כותרת לא ידועה", "fallbackDesc": "המשך את ספר האודיו הנוכחי שלך."},
+      fa: {"morning": "صبح بخیر", "afternoon": "عصر بخیر", "evening": "شب بخیر", "welcome": "خوش برگشتید", "pickup": "از جایی که رها کردید ادامه دهید", "by": "از", "continue": "ادامه", "left": "باقی‌مانده", "narratedBy": "با صدای", "unknown": "عنوان ناشناخته", "fallbackDesc": "کتاب صوتی فعلی خود را از سر بگیرید."},
+      hi: {"morning": "सुप्रभात", "afternoon": "शुभ दोपहर", "evening": "शुभ संध्या", "welcome": "वापसी पर स्वागत है", "pickup": "जहाँ छोड़ा था वहीं से जारी रखें", "by": "द्वारा", "continue": "जारी रखें", "left": "शेष", "narratedBy": "वाचन", "unknown": "अज्ञात शीर्षक", "fallbackDesc": "अपनी वर्तमान ऑडियोबुक फिर से शुरू करें।"},
+      bn: {"morning": "সুপ্রভাত", "afternoon": "শুভ অপরাহ্ন", "evening": "শুভ সন্ধ্যা", "welcome": "ফিরে আসায় স্বাগতম", "pickup": "যেখানে থেমেছিলেন সেখান থেকে চালিয়ে যান", "by": "লেখক", "continue": "চালিয়ে যান", "left": "বাকি", "narratedBy": "পাঠ করেছেন", "unknown": "অজানা শিরোনাম", "fallbackDesc": "আপনার বর্তমান অডিওবুক আবার শুরু করুন।"},
+      gu: {"morning": "સુપ્રભાત", "afternoon": "શુભ બપોર", "evening": "શુભ સાંજ", "welcome": "પાછા આવવા બદલ સ્વાગત છે", "pickup": "જ્યાં છોડ્યું હતું ત્યાંથી ચાલુ રાખો", "by": "દ્વારા", "continue": "ચાલુ રાખો", "left": "બાકી", "narratedBy": "વાચન", "unknown": "અજાણ્યું શીર્ષક", "fallbackDesc": "તમારી વર્તમાન ઑડિયોબુક ફરી શરૂ કરો."},
+      vi: {"morning": "CHÀO BUỔI SÁNG", "afternoon": "CHÀO BUỔI CHIỀU", "evening": "CHÀO BUỔI TỐI", "welcome": "Chào mừng trở lại", "pickup": "Tiếp tục từ chỗ bạn đã dừng", "by": "của", "continue": "Tiếp tục", "left": "còn lại", "narratedBy": "Người đọc", "unknown": "Tiêu đề không xác định", "fallbackDesc": "Tiếp tục sách nói hiện tại của bạn."}
     };
     return dictionary[baseLang] || dictionary.en;
   };
@@ -923,10 +1069,14 @@
 
           if (!durationSec) durationSec = Number(itemData.media?.duration) || Number(itemData.media?.metadata?.duration) || 0;
 
+          const nhEbookFormat = itemData.media?.ebookFormat || itemData.media?.ebookFile?.ebookFormat || '';
+          const isEbookOnly = !Number(itemData.media?.duration) && !!nhEbookFormat;
+
           const ump = itemData.userMediaProgress;
           if (ump) {
             if (ump.currentTime != null && !playedSec) playedSec = Number(ump.currentTime);
             if (ump.progress != null && !progressPercent) progressPercent = Number(ump.progress) * 100;
+            if (isEbookOnly && ump.ebookProgress != null && !progressPercent) progressPercent = Number(ump.ebookProgress) * 100;
           }
 
           if (!progressPercent) {
@@ -948,10 +1098,13 @@
           const leftSec = Math.max(0, durationSec - playedSec);
 
           leftSideText = `${Math.round(progressPercent)}%`;
-          rightSideText = leftSec > 0 ? `${formatTime(leftSec)} ${t.left}` : `0m ${t.left}`;
+          // Ebooks have no time axis: show only the percentage, no "0m left".
+          rightSideText = isEbookOnly ? '' : (leftSec > 0 ? `${formatTime(leftSec)} ${t.left}` : `0m ${t.left}`);
+          if (isEbookOnly && description === t.fallbackDesc) description = t.pickup + '.';
 
           const tags = [];
           if (durationSec > 0) tags.push(formatTime(durationSec));
+          if (isEbookOnly && nhEbookFormat) tags.push(String(nhEbookFormat).toUpperCase());
 
           const narrator = itemData.media?.metadata?.narratorName;
           if (narrator) tags.push(`${t.narratedBy} ${narrator}`);
@@ -971,8 +1124,8 @@
 
   function slideMarkup(d, t) {
     return `
-      <div class="nh-hero-slide" style="flex: 0 0 100%; min-width: 100%; box-sizing: border-box;">
-        <div class="nh-hero-banner" style="position: relative; overflow: hidden; background-color: var(--nh-raised); border-radius: 24px; padding: 48px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); cursor: pointer; transition: transform 0.2s ease;">
+      <div class="nh-hero-slide" style="flex: 0 0 100%; min-width: 100%; box-sizing: border-box; display: flex;">
+        <div class="nh-hero-banner" style="width: 100%; position: relative; overflow: hidden; background-color: var(--nh-raised); border-radius: 24px; padding: 48px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); cursor: pointer; transition: transform 0.2s ease;">
 
           <div class="nh-hero-bg" style="position: absolute; inset: -12%; background-image: url('${d.coverUrl}'); background-size: cover; background-position: center; filter: blur(60px) brightness(0.5) saturate(1.4); z-index: 0; pointer-events: none;"></div>
           <div style="position: absolute; inset: 0; background: linear-gradient(110deg, rgba(var(--nh-bg-rgb), 0.92) 0%, rgba(var(--nh-bg-rgb), 0.62) 50%, rgba(var(--nh-bg-rgb), 0.22) 100%); z-index: 1; pointer-events: none;"></div>
@@ -982,9 +1135,7 @@
             <div class="nh-hero-title" style="font-family: var(--nh-serif); font-size: 3.4rem; font-weight: 600; line-height: 1.25; color: #ffffff; margin-bottom: 8px; padding-bottom: 4px; letter-spacing: -0.01em; text-shadow: 0 2px 10px rgba(0,0,0,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${d.title}</div>
             <div style="font-size: 1.25rem; color: #d8cfc2; margin-bottom: 20px; font-family: system-ui, sans-serif;">${t.by ? t.by + ' ' : ''}${d.author}</div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; font-family: system-ui, sans-serif;">
-              ${d.tagsHtml}
-            </div>
+            ${d.tagsHtml ? `<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; font-family: system-ui, sans-serif;">${d.tagsHtml}</div>` : ''}
 
             <div style="color: #c9bfb1; font-size: 1.15rem; line-height: 1.6; margin-bottom: 32px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; font-family: system-ui, sans-serif; max-width: 90%; text-shadow: 0 1px 8px rgba(0,0,0,0.5);">
               ${d.description}
@@ -1007,8 +1158,8 @@
             </div>
           </div>
 
-          <div style="position: relative; z-index: 2; flex-shrink: 0; width: 340px; height: 340px;">
-            <img src="${d.coverUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6);" />
+          <div style="position: relative; z-index: 2; flex-shrink: 0; display: flex; align-items: center;">
+            <img src="${d.coverUrl}" style="height: 380px; width: auto; max-width: 420px; object-fit: contain; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6);" />
           </div>
         </div>
       </div>
@@ -1016,26 +1167,69 @@
   }
 
   async function injectHeroBanner() {
+    // Toggle off: remove the hero and restore the stock Continue Listening shelf.
+    if (nhSettings.showHeroCarousel === false) {
+      const ex = document.getElementById('nh-hero-container');
+      if (ex) ex.remove();
+      document.querySelectorAll('.bookshelf-row[data-hero-injected="true"]').forEach(function (injectedRow) {
+        injectedRow.style.display = '';
+        Array.from(injectedRow.children).forEach(c => { if (c.id !== 'nh-hero-container') c.style.display = ''; });
+        delete injectedRow.dataset.heroInjected;
+      });
+      return;
+    }
+    // Continue Reading shelf handling runs every tick, before any carousel guard:
+    // 'hide' hides the whole row; leaving 'hide' restores it (combined rows are
+    // restored by the mode-change teardown in applySettings instead).
+    const nhFindShelf = function (sid) {
+      return Array.prototype.find.call(document.querySelectorAll('.bookshelf-row'), function (r) {
+        const vm = r.__vue__;
+        return vm && (vm.shelfId === sid || (vm.$props && vm.$props.shelfId === sid));
+      });
+    };
+    const crRow = nhFindShelf('continue-reading');
+    if (crRow) {
+      if (nhSettings.continueReadingMode === 'hide') crRow.style.display = 'none';
+      else if (crRow.style.display === 'none' && crRow.dataset.heroInjected !== 'true') crRow.style.display = '';
+    }
+
     if (isInjectingHero || document.getElementById('nh-hero-container')) return;
 
-    const headers = Array.from(document.querySelectorAll('.bookshelf-row h2'));
-    const continueHeader = headers.find(h => {
-      const txt = h.textContent.trim().toLowerCase();
+    // Identify Continue Listening structurally (shelfId prop on the slider's Vue
+    // instance) — header-text matching missed languages like Spanish ("Seguir
+    // Escuchando"), so the carousel never appeared there. Text match kept as fallback.
+    const rows = Array.from(document.querySelectorAll('.bookshelf-row'));
+    const row = rows.find(r => {
+      const vm = r.__vue__;
+      const sid = vm && (vm.shelfId || (vm.$props && vm.$props.shelfId));
+      if (sid) return sid === 'continue-listening';
+      const h = r.querySelector('h2');
+      const txt = h ? h.textContent.trim().toLowerCase() : '';
       return txt.includes('continue') || txt.includes('kontynuuj') || txt.includes('weiter') || txt.includes('continu');
     });
-
-    if (!continueHeader) return;
-
-    const row = continueHeader.closest('.bookshelf-row');
     if (!row || row.dataset.heroInjected === 'true') return;
 
     let cards = Array.from(row.querySelectorAll('[cy-id="card"], [id^="book-card-"]'));
     if (!cards.length) return;
+
+    // Combine mode: fold Continue Reading items into the carousel and hide that shelf.
+    let crCombined = null;
+    if (nhSettings.continueReadingMode === 'combine' && crRow && crRow.dataset.heroInjected !== 'true') {
+      const crCards = Array.from(crRow.querySelectorAll('[cy-id="card"], [id^="book-card-"]'));
+      if (crCards.length) {
+        cards = cards.concat(crCards);
+        crCombined = crRow;
+      }
+    }
     cards = cards.slice(0, 10);
 
     isInjectingHero = true;
 
-    const nativeChildren = Array.from(row.children);
+    let nativeChildren = Array.from(row.children);
+    if (crCombined) {
+      crCombined.dataset.heroInjected = 'true';
+      crCombined.style.display = 'none'; // the emptied row still paints its own box
+    }
     nativeChildren.forEach(c => { c.style.display = 'none'; });
     const skeleton = document.createElement('div');
     skeleton.id = 'nh-hero-skeleton';
@@ -1059,6 +1253,7 @@
       const sk = document.getElementById('nh-hero-skeleton');
       if (sk) sk.remove();
       nativeChildren.forEach(c => { c.style.display = ''; });
+      if (crCombined) { crCombined.style.display = ''; delete crCombined.dataset.heroInjected; }
     };
 
     try {
@@ -1149,7 +1344,7 @@
 
         playBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          const nativeBtn = card.querySelector('[cy-id="playButton"] .pointer-events-auto, [cy-id="playButton"] > div, .absolute.top-0.left-0.w-full.h-full.z-10 button');
+          const nativeBtn = card.querySelector('[cy-id="playButton"] .pointer-events-auto, [cy-id="playButton"] > div, [cy-id="readButton"] .pointer-events-auto, .absolute.top-0.left-0.w-full.h-full.z-10 button');
           if (nativeBtn) nativeBtn.click();
           else card.click();
         });
@@ -1412,7 +1607,7 @@
     const cards = list.map(s => {
       const cv = (s.covers || []).slice(0, 3);
       let inner = cv.length
-        ? cv.map((url, i) => `<div class="nh-rs-cover ${layers[i]}" style="background-image:url('${url}${tq}')"></div>`).join('')
+        ? cv.map((url, i) => `<div class="nh-rs-cover ${layers[i]}"><i class="nh-rs-bg" style="background-image:url('${url}${tq}')"></i><i class="nh-rs-fg" style="background-image:url('${url}${tq}')"></i></div>`).join('')
         : `<div class="nh-rs-cover c1" style="background:var(--nh-raised)"></div>`;
       const route = `/library/${libId}/series/${s.id}`;
       return `<a class="nh-rs-card" data-route="${route}" href="${base}${route}">
@@ -1434,7 +1629,12 @@
       #nh-recent-series-row .nh-rs-scroll::-webkit-scrollbar { display: none; height: 0; width: 0; }
       #nh-recent-series-row .nh-rs-card { flex: 0 0 auto; width: calc(var(--nh-rs-cw, 140px) * 1.171); text-decoration: none; }
       #nh-recent-series-row .nh-rs-covers { position: relative; width: var(--nh-rs-cw, 140px); height: var(--nh-rs-cw, 140px); margin-bottom: 36px; overflow: visible; }
-      #nh-recent-series-row .nh-rs-cover { position: absolute; top: 0; left: 0; width: var(--nh-rs-cw, 140px); height: var(--nh-rs-cw, 140px); border-radius: 12px; background-size: cover; background-position: center; background-color: var(--nh-raised); box-shadow: 0 10px 24px rgba(0,0,0,0.42); transition: filter .2s ease, box-shadow .2s ease; }
+      #nh-recent-series-row .nh-rs-cover { position: absolute; top: 0; left: 0; width: var(--nh-rs-cw, 140px); height: var(--nh-rs-cw, 140px); border-radius: 12px; overflow: hidden; background-color: var(--nh-raised); box-shadow: 0 10px 24px rgba(0,0,0,0.42); transition: filter .2s ease, box-shadow .2s ease; }
+      #nh-recent-series-row .nh-rs-bg, #nh-recent-series-row .nh-rs-fg { position: absolute; inset: 0; display: block; background-position: center; background-repeat: no-repeat; border-radius: inherit; }
+      #nh-recent-series-row .nh-rs-bg { background-size: cover; filter: blur(14px) brightness(0.85); transform: scale(1.15); }
+      #nh-recent-series-row .nh-rs-fg { background-size: contain; }
+      html.nh-covers-std #nh-recent-series-row .nh-rs-covers { height: calc(var(--nh-rs-cw, 140px) * 1.6); }
+      html.nh-covers-std #nh-recent-series-row .nh-rs-cover { height: calc(var(--nh-rs-cw, 140px) * 1.6); }
       #nh-recent-series-row .nh-rs-cover.c1 { transform: translate(0,0); z-index: 3; }
       #nh-recent-series-row .nh-rs-cover.c2 { transform: translate(calc(var(--nh-rs-cw, 140px) * 0.086), calc(var(--nh-rs-cw, 140px) * 0.086)); z-index: 2; filter: brightness(0.78); }
       #nh-recent-series-row .nh-rs-cover.c3 { transform: translate(calc(var(--nh-rs-cw, 140px) * 0.171), calc(var(--nh-rs-cw, 140px) * 0.171)); z-index: 1; filter: brightness(0.60); }
@@ -1494,7 +1694,7 @@
   async function manageRecentSeries() {
     try {
       const homeOk = /\/library\/[^/]+\/?$/.test(window.location.pathname);
-      if (!homeOk || !nhSettings.showCustomRecentSeries || nhSettings.hideHomeRecentSeries) {
+      if (!homeOk || !nhSettings.showCustomRecentSeries || nhSettings.customSeriesCards === false || nhSettings.hideHomeRecentSeries) {
         const ex = document.getElementById('nh-recent-series-row');
         if (ex) ex.remove();
         return;
@@ -1578,12 +1778,15 @@
   // computes slots from the previous size (rows overlap / titles clipped).
   let nhSeriesWatched = false;
   function nhSeriesScale() {
+    if (nhSettings.customSeriesCards === false) return;
     const store = window.$nuxt && window.$nuxt.$store;
     if (!store) return;
     let m;
     try { m = store.getters['user/getSizeMultiplier']; } catch (e) { return; }
     if (typeof m !== 'number' || !(m > 0.05) || !(m < 10)) return;
-    const s = m * 1.2;
+    // 1.6:1 mode grows tile heights x1.6, so shrink the base scale to keep the
+    // stacked cards' footprint close to the stock series cards at the same slider.
+    const s = m * (document.documentElement.classList.contains('nh-covers-std') ? 0.85 : 1.2);
     const root = document.documentElement.style;
     root.setProperty('--nh-series-w', Math.round(196 * s) + 'px');
     root.setProperty('--nh-series-cover', Math.round(168 * s) + 'px');
@@ -1606,6 +1809,17 @@
           Promise.resolve(vm.setCardSize()).then(() => { if (typeof vm.executeRebuild === 'function') vm.executeRebuild(); }).catch(() => {});
         } else if (tries > 20) clearInterval(nudge);
       }, 300);
+    }
+  }
+
+  // Mark <html> when the current library prefers standard 1.6:1 covers, so CSS can
+  // adapt card typography per mode. Getter returns 1.6 or 1 (square).
+  function nhCoverModeClass() {
+    let r = 1;
+    try { r = window.$nuxt.$store.getters['libraries/getBookCoverAspectRatio'] || 1; } catch (e) { return; }
+    const want = r > 1;
+    if (document.documentElement.classList.contains('nh-covers-std') !== want) {
+      document.documentElement.classList.toggle('nh-covers-std', want);
     }
   }
 
@@ -1715,7 +1929,13 @@
   // rules must land after — applyTheme is patched to chain our pass. Fonts are set via
   // rendition.themes.font(), and the font files must be loaded INSIDE the iframe, so a
   // content hook injects a Google Fonts stylesheet into each rendered chapter.
-  const NH_EREADER_FONTS = ['Merriweather', 'Lora', 'Literata', 'Bitter', 'EB Garamond', 'Crimson Pro', 'Vollkorn', 'Atkinson Hyperlegible', 'Inter', 'Nunito Sans'];
+  const NH_ER_FONTS_SERIF = ['Literata', 'Merriweather', 'Lora', 'EB Garamond', 'Crimson Pro'];
+  const NH_ER_FONTS_SANS = ['Atkinson Hyperlegible', 'Inter', 'Source Sans 3', 'Nunito Sans', 'Lexend'];
+  const NH_ER_FONTS_DYS = ['OpenDyslexic'];
+  // Google Fonts only — OpenDyslexic loads from fontsource (not on Google Fonts)
+  const NH_EREADER_FONTS = NH_ER_FONTS_SERIF.concat(NH_ER_FONTS_SANS);
+  const NH_DYS_CSS = 'https://cdn.jsdelivr.net/npm/@fontsource/opendyslexic@5/index.css';
+  function nhFontGeneric(f) { return NH_ER_FONTS_SERIF.indexOf(f) !== -1 ? 'serif' : 'sans-serif'; }
   // ABS's own Dark/Sepia/Light are folded in as presets (its Theme row is hidden by the
   // modal builder) so there is ONE colour control. They're implemented as overlay rules
   // with the exact ABS colours, so the underlying ABS theme state never fights us.
@@ -1724,7 +1944,7 @@
     dark:     { label: 'Dark',     fg: '#ffffff', bg: function () { return '#232323'; } },
     sepia:    { label: 'Sepia',    fg: '#5b4636', bg: function () { return '#f4ecd8'; } },
     light:    { label: 'Light',    fg: '#000000', bg: function () { return '#ffffff'; } },
-    nanohive: { label: 'NanoHive', fg: '#e8e0d2', bg: function () { try { const v = getComputedStyle(document.documentElement).getPropertyValue('--nh-canvas').trim(); return v || '#181512'; } catch (e) { return '#181512'; } } },
+    nanohive: { label: 'Theme', fg: function () { try { const v = getComputedStyle(document.documentElement).getPropertyValue('--nh-text-1').trim(); return v || '#e8e0d2'; } catch (e) { return '#e8e0d2'; } }, bg: function () { try { const v = getComputedStyle(document.documentElement).getPropertyValue('--nh-canvas').trim(); return v || '#181512'; } catch (e) { return '#181512'; } } },
     black:    { label: 'Black',    fg: '#c9c2b6', bg: function () { return '#000000'; } },
     paper:    { label: 'Paper',    fg: '#2e2a24', bg: function () { return '#f7f3ea'; } }
   };
@@ -1743,18 +1963,20 @@
     return null;
   }
 
+  function nhPresetFg(p) { return typeof p.fg === 'function' ? p.fg() : p.fg; }
   function nhEreaderEff() {
-    const preset = NH_EREADER_PAGES[nhEreaderGet('ereaderPage')];
+    // Unset = follow the active NanoHive theme (item: theme colours are the ereader default)
+    const preset = NH_EREADER_PAGES[nhEreaderGet('ereaderPage') || 'nanohive'];
     return {
       font: nhEreaderGet('ereaderFont'),
-      fg: nhEreaderGet('ereaderFg') || (preset ? preset.fg : ''),
+      fg: nhEreaderGet('ereaderFg') || (preset ? nhPresetFg(preset) : ''),
       bg: nhEreaderGet('ereaderBg') || (preset ? preset.bg() : '')
     };
   }
 
   function nhDecorateContents(c) {
     const eff = nhEreaderEff();
-    try { if (eff.font) c.addStylesheet('https://fonts.googleapis.com/css2?family=' + eff.font.replace(/ /g, '+') + ':ital,wght@0,400;0,700;1,400&display=swap'); } catch (e) {}
+    try { if (eff.font) c.addStylesheet(eff.font === 'OpenDyslexic' ? NH_DYS_CSS : 'https://fonts.googleapis.com/css2?family=' + eff.font.replace(/ /g, '+') + ':ital,wght@0,400;0,700;1,400&display=swap'); } catch (e) {}
     if (eff.fg || eff.bg) {
       const all = {}, links = {};
       if (eff.fg) { all.color = eff.fg + '!important'; links.color = eff.fg + '!important'; }
@@ -1793,7 +2015,7 @@
     }
     const eff = nhEreaderEff();
     try {
-      if (eff.font) rend.themes.font('"' + eff.font + '", serif');
+      if (eff.font) rend.themes.font('"' + eff.font + '", ' + nhFontGeneric(eff.font));
       else if (vm.ereaderSettings && vm.ereaderSettings.font) rend.themes.font(vm.ereaderSettings.font);
     } catch (e) {}
     // ABS pass first (restores stock when everything is Default), ours chained after
@@ -1806,6 +2028,11 @@
     const l = document.createElement('link');
     l.id = 'nh-er-fonts'; l.rel = 'stylesheet';
     l.href = 'https://fonts.googleapis.com/css2?' + NH_EREADER_FONTS.map(function (f) { return 'family=' + f.replace(/ /g, '+') + ':wght@400;600'; }).join('&') + '&display=swap';
+    if (!document.getElementById('nh-er-dys-css')) {
+      const d = document.createElement('link');
+      d.id = 'nh-er-dys-css'; d.rel = 'stylesheet'; d.href = NH_DYS_CSS;
+      document.head.appendChild(d);
+    }
     document.head.appendChild(l);
   }
 
@@ -1822,7 +2049,7 @@
     const s = (vm && vm.ereaderSettings) || {};
     const eff = nhEreaderEff();
     const fg = eff.fg || '#ffffff';
-    prev.style.fontFamily = eff.font ? '"' + eff.font + '", serif' : ((s.font === 'sans') ? 'ui-sans-serif, system-ui, sans-serif' : 'Georgia, serif');
+    prev.style.fontFamily = eff.font ? '"' + eff.font + '", ' + nhFontGeneric(eff.font) : ((s.font === 'sans') ? 'ui-sans-serif, system-ui, sans-serif' : 'Georgia, serif');
     prev.style.color = fg;
     prev.style.background = eff.bg || '#232323';
     const fs = (s.fontScale || 100) / 100;
@@ -1835,16 +2062,22 @@
   }
 
   function nhEreaderModal() {
-    const label = Array.prototype.find.call(document.querySelectorAll('p.text-lg'), function (p) { return p.textContent.trim() === 'Theme:'; });
-    if (!label) return;
-    const card = label.closest('div.bg-bg') || label.closest('.rounded-lg');
+    // Anchor on ABS's Sans/Serif toggle buttons — they're hardcoded untranslated in
+    // ABS source, so this works in every UI language (the old 'Theme:' text anchor
+    // broke the whole extension on non-English UIs).
+    const fontBtn = Array.prototype.find.call(document.querySelectorAll('button.toggle-btn'), function (b) { return b.textContent.trim() === 'Serif'; });
+    if (!fontBtn) return;
+    const card = fontBtn.closest('div.bg-bg') || fontBtn.closest('.rounded-lg');
     if (!card || card.dataset.nhExt) return;
     card.dataset.nhExt = '1';
     nhEreaderFontsLink();
 
-    // ABS's Theme row is superseded by our Page theme presets — one control, not two.
-    const absThemeRow = label.closest('.flex.items-center');
-    if (absThemeRow) absThemeRow.style.display = 'none';
+    // ABS's Theme row (first row) is superseded by our Page theme presets, and its
+    // Sans/Serif toggle by our full typeface dropdown — one control each, not two.
+    const absRows = card.querySelectorAll('.flex.items-center');
+    if (absRows[0]) absRows[0].style.display = 'none';
+    const absFontRow = fontBtn.closest('.flex.items-center');
+    if (absFontRow) absFontRow.style.display = 'none';
 
     const rebuild = function () {
       delete card.dataset.nhExt;
@@ -1908,22 +2141,37 @@
     };
 
     const curFont = nhEreaderGet('ereaderFont');
-    sec.appendChild(row('Typeface', [chip('Default', !curFont, function () { pick('ereaderFont', ''); })].concat(
-      NH_EREADER_FONTS.map(function (f) {
-        return chip(f, curFont === f, function () { pick('ereaderFont', f); }, function (b) { b.style.fontFamily = '"' + f + '", serif'; });
-      })
-    )));
+    const fontSel = document.createElement('select');
+    fontSel.className = 'nh-er-select';
+    const defOpt = document.createElement('option');
+    defOpt.value = ''; defOpt.textContent = 'Default (ABS)';
+    fontSel.appendChild(defOpt);
+    [['Serif', NH_ER_FONTS_SERIF], ['Sans serif', NH_ER_FONTS_SANS], ['Dyslexia friendly', NH_ER_FONTS_DYS]].forEach(function (grp) {
+      const og = document.createElement('optgroup');
+      og.label = grp[0];
+      grp[1].forEach(function (f) {
+        const o = document.createElement('option');
+        o.value = f; o.textContent = f;
+        o.style.fontFamily = '"' + f + '", ' + nhFontGeneric(f);
+        og.appendChild(o);
+      });
+      fontSel.appendChild(og);
+    });
+    fontSel.value = curFont || '';
+    if (curFont) fontSel.style.fontFamily = '"' + curFont + '", ' + nhFontGeneric(curFont);
+    fontSel.addEventListener('change', function () { pick('ereaderFont', fontSel.value); });
+    sec.appendChild(row('Typeface', [fontSel]));
 
     const curPage = nhEreaderGet('ereaderPage');
     const hasCustom = !!(nhEreaderGet('ereaderFg') || nhEreaderGet('ereaderBg'));
     sec.appendChild(row('Page theme', Object.keys(NH_EREADER_PAGES).map(function (k) {
       const p = NH_EREADER_PAGES[k];
-      const sel = !hasCustom && (curPage === k || (!curPage && k === 'dark'));
+      const sel = !hasCustom && (curPage === k || (!curPage && k === 'nanohive'));
       return chip(p.label, sel, function () {
-        nhEreaderSet('ereaderPage', k === 'dark' ? '' : k);
+        nhEreaderSet('ereaderPage', k === 'nanohive' ? '' : k);
         nhEreaderSet('ereaderFg', ''); nhEreaderSet('ereaderBg', '');
         rebuild();
-      }, function (b) { b.classList.add('nh-er-tile'); b.style.background = p.bg(); b.style.color = p.fg; b.style.borderColor = 'rgba(255,255,255,0.35)'; });
+      }, function (b) { b.classList.add('nh-er-tile'); b.style.background = p.bg(); b.style.color = nhPresetFg(p); b.style.borderColor = 'rgba(255,255,255,0.35)'; });
     })));
 
     const curFg = nhEreaderGet('ereaderFg');
@@ -1950,6 +2198,7 @@
   function runMutations() {
     const safe = (fn) => { try { fn(); } catch (e) { /* one failure must not block the rest */ } };
     safe(nhSeriesScale);
+    safe(nhCoverModeClass);
     safe(nhSeriesHeader);
     safe(nhTagFinished);
     safe(nhEreader);

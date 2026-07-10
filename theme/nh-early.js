@@ -1,4 +1,4 @@
-/* NanoHive ABS — Early Boot Shim  v1.1.0
+/* NanoHive ABS — Early Boot Shim  v1.3.0
    Runs inline in <head>, right after core.js. Applies the resolved theme
    (baked defaults merged with the user's saved overrides) before first paint,
    and paints the cached home cinematic background as soon as <body> exists,
@@ -9,11 +9,13 @@
   'use strict';
 
   // Neutral defaults. Must mirror defaultSettings in enhancements.js (visual subset).
-  var DEFAULTS = { accentColor: '#e0c27a', mainFont: 'Merriweather', fontScale: 1.0, baseTheme: 'warm', logoUrl: '', colorizeLogo: false };
+  var DEFAULTS = { accentColor: '#e0c27a', mainFont: 'Merriweather', fontScale: 1.0, baseTheme: 'warm', logoUrl: '', colorizeLogo: false, customSeriesCards: true };
 
   // Operator defaults, injected by nginx from env vars. Precedence:
   // saved user settings > NH_CONFIG > DEFAULTS.
   var CFG = (window.NH_CONFIG && typeof window.NH_CONFIG === 'object') ? window.NH_CONFIG : {};
+  // UI-saved server defaults (admin panel -> PUT -> /data/nh volume), injected via SSI.
+  var SRV = (window.NH_SERVER_CONFIG && typeof window.NH_SERVER_CONFIG === 'object') ? window.NH_SERVER_CONFIG : {};
 
   // Must mirror baseThemes in enhancements.js.
   var THEMES = {
@@ -37,9 +39,17 @@
   // `||` would discard legitimate falsy values (fontScale 0, colorizeLogo false).
   var pick = function (key) {
     if (saved[key] !== undefined && saved[key] !== null && saved[key] !== '') return saved[key];
+    if (SRV[key] !== undefined && SRV[key] !== null && SRV[key] !== '') return SRV[key];
     if (CFG[key] !== undefined && CFG[key] !== null && CFG[key] !== '') return CFG[key];
     return DEFAULTS[key];
   };
+
+  // Stock-series mode must be resolved before ABS measures its dummy card in
+  // mounted(), or the bookshelf lays out with the wrong card widths (mangled grid
+  // on refresh). <html> exists here; core.js gates on html.nh-stock-series.
+  try {
+    if (pick('customSeriesCards') === false) document.documentElement.classList.add('nh-stock-series');
+  } catch (e) {}
 
   var s = {
     accentColor: pick('accentColor'),

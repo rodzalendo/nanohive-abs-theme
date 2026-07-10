@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.27.61  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.27.72  (injected build) */
 
 (function () {
   'use strict';
@@ -272,7 +272,7 @@ div.fixed.right-4.z-50 > div span.material-symbols:hover { color: var(--nh-amber
 
 /* ============ LEFT NAV RAIL ============ */
 [aria-label="Library Sidebar"], [aria-label="Config Navigation"] { background-color: var(--nh-rail) !important; border-right: 1px solid var(--nh-hairline) !important; box-shadow: none !important; height: 100%; }
-#siderail-buttons-container a, [aria-label="Config Navigation"] a { color: var(--nh-muted-2) !important; border-bottom: none !important; background-color: transparent !important; margin: 2px 6px; border-radius: 12px; transition: background-color .15s, color .15s; }
+#siderail-buttons-container a, [aria-label="Config Navigation"] a { color: var(--nh-muted-2) !important; border-bottom: none !important; background-color: transparent !important; margin: 2px 6px; width: calc(100% - 12px) !important; border-radius: 12px; transition: background-color .15s, color .15s; }
 #siderail-buttons-container a { height: 4rem !important; }
 
 #siderail-buttons-container a span.material-symbols, #siderail-buttons-container a span.abs-icons, [aria-label="Config Navigation"] a span.material-symbols {
@@ -331,29 +331,43 @@ div.fixed.right-4.z-50 > div span.material-symbols:hover { color: var(--nh-amber
    put inline heights on covers-area (that's why the fixed height exists). Scaling comes
    only from the vars, driven by user/getSizeMultiplier in enhancements.js, normalized so
    slider=100 reproduces the baseline exactly. Fallbacks = frozen baseline. */
-[cy-id="card"][id^="series-card-"] { width: var(--nh-series-w, 196px) !important; }
-[cy-id="covers-area"] { height: var(--nh-series-w, 196px) !important; overflow: visible !important; }
-[cy-id="item"] { overflow: visible !important; }
-[cy-id="covers-area"] > div:not([cy-id]) { background: transparent !important; box-shadow: none !important; overflow: visible !important; }
-[cy-id="covers-area"] .bg-primary { background: transparent !important; }
-[cy-id="covers-area"] .bg-primary > .relative { width: 100% !important; }
-[id^="group-cover-"] { overflow: visible !important; box-shadow: none !important; }
-[id^="group-cover-"] > div { left: 0 !important; top: 0 !important; width: var(--nh-series-cover, 168px) !important; height: var(--nh-series-cover, 168px) !important; border-radius: 12px !important; overflow: hidden !important; box-shadow: 0 10px 24px rgba(0,0,0,0.42) !important; transition: filter .2s ease, box-shadow .2s ease !important; }
-[cy-id="card"][id^="series-card-"]:hover [id^="group-cover-"] > div:nth-child(1) { filter: brightness(0.7) !important; box-shadow: 0 10px 24px rgba(0,0,0,0.42) !important; }
-[id^="group-cover-"] > div img { border-radius: 12px !important; }
-[id^="group-cover-"] > div:nth-child(1) { transform: translate(0,0) !important; z-index: 3 !important; }
-[id^="group-cover-"] > div:nth-child(2) { transform: translate(var(--nh-series-off1, 12px),var(--nh-series-off1, 12px)) !important; z-index: 2 !important; filter: brightness(0.78) !important; }
-[id^="group-cover-"] > div:nth-child(3) { transform: translate(var(--nh-series-off2, 24px),var(--nh-series-off2, 24px)) !important; z-index: 1 !important; filter: brightness(0.60) !important; }
-[id^="group-cover-"] > div:nth-child(n+4) { display: none !important; }
+html:not(.nh-stock-series) [cy-id="card"][id^="series-card-"] { width: var(--nh-series-w, 196px) !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] { height: var(--nh-series-w, 196px) !important; overflow: visible !important; }
+html:not(.nh-stock-series) [cy-id="item"] { overflow: visible !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] > div:not([cy-id]) { background: transparent !important; box-shadow: none !important; overflow: visible !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] .bg-primary { background: transparent !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] .bg-primary > .relative { width: 100% !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] [id^="group-cover-"] { overflow: visible !important; box-shadow: none !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] [id^="group-cover-"] > div { left: 0 !important; top: 0 !important; width: var(--nh-series-cover, 168px) !important; height: var(--nh-series-cover, 168px) !important; border-radius: 12px !important; overflow: hidden !important; box-shadow: 0 10px 24px rgba(0,0,0,0.42) !important; transition: filter .2s ease, box-shadow .2s ease !important; }
+html:not(.nh-stock-series) [cy-id="card"][id^="series-card-"]:hover [id^="group-cover-"] > div:nth-child(1) { filter: brightness(0.7) !important; box-shadow: 0 10px 24px rgba(0,0,0,0.42) !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] [id^="group-cover-"] > div img { border-radius: 12px !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] [id^="group-cover-"] > div:nth-child(1) { transform: translate(0,0) !important; z-index: 3 !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] [id^="group-cover-"] > div:nth-child(2) { transform: translate(var(--nh-series-off1, 12px),var(--nh-series-off1, 12px)) !important; z-index: 2 !important; filter: brightness(0.78) !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] [id^="group-cover-"] > div:nth-child(3) { transform: translate(var(--nh-series-off2, 24px),var(--nh-series-off2, 24px)) !important; z-index: 1 !important; filter: brightness(0.60) !important; }
+html:not(.nh-stock-series) [cy-id="covers-area"] [id^="group-cover-"] > div:nth-child(n+4) { display: none !important; }
+/* Standard 1.6:1 libraries: stacked tiles go portrait (heights x1.6, widths unchanged) */
+html:not(.nh-stock-series).nh-covers-std [cy-id="covers-area"] { height: calc(var(--nh-series-w, 196px) * 1.6) !important; }
+html:not(.nh-stock-series).nh-covers-std [cy-id="covers-area"] [id^="group-cover-"] > div { height: calc(var(--nh-series-cover, 168px) * 1.6) !important; }
 [cy-id="seriesLengthMarker"] { left: 0.375em !important; right: auto !important; background-color: rgba(255,255,255,0.55) !important; backdrop-filter: blur(10px) brightness(1.2) saturate(1.05) !important; -webkit-backdrop-filter: blur(10px) brightness(1.2) saturate(1.05) !important; border: 1px solid rgba(255,255,255,0.35) !important; box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important; z-index: 5 !important; }
 [cy-id="seriesLengthMarker"] p { color: #000000 !important; font-weight: 700 !important; font-family: var(--nh-sans) !important; }
 [cy-id="hoveringDisplayTitle"] { display: none !important; }
+html.nh-stock-series [id^="series-card-"] [cy-id="hoveringDisplayTitle"] { display: flex !important; background: rgba(0,0,0,0.3) !important; }
+html.nh-stock-series [id^="series-card-"] [cy-id="hoveringDisplayTitle"] > * { visibility: hidden !important; }
+[cy-id="seriesProgressBar"] { display: none !important; }
 [id^="series-card-"] p:not([role="status"]), [id^="series-card-"] .truncate, [cy-id="detailBottomDisplayTitle"], [id^="collection-card-"] p, [id^="collection-card-"] .truncate { font-family: var(--nh-serif) !important; font-weight: 500 !important; color: var(--nh-text-2) !important; }
 
 [id^="collection-card-"] .bg-primary.rounded-sm { border-radius: 14px !important; overflow: hidden !important; box-shadow: 0 10px 26px rgba(0,0,0,0.40) !important; }
 [id^="collection-card-"] .bg-primary.rounded-sm > .rounded-xs { border-radius: 14px !important; }
 [id^="collection-card-"] .flex > .rounded-xs { border-radius: 0 !important; }
 [id^="collection-card-"] .box-shadow-book { box-shadow: 0 10px 26px rgba(0,0,0,0.40) !important; }
+
+/* ============ STANDARD (1.6:1) COVER MODE ============ */
+/* Set per-library by nhCoverModeClass() when the library prefers 1.6:1 covers.
+   Narrower cards truncate sooner, so ease the title/author size slightly. */
+html.nh-covers-std #bookshelf [cy-id="title"],
+html.nh-covers-std .categorizedBookshelfRow [cy-id="title"] { font-size: 0.85em !important; }
+html.nh-covers-std #bookshelf [cy-id="title"] + p,
+html.nh-covers-std .categorizedBookshelfRow [cy-id="title"] + p { font-size: 0.72em !important; }
 
 /* ============ NARRATORS PAGE ============ */
 [id^="narrator-card-"], [id^="author-card-"] { background-color: var(--nh-raised) !important; border: 1px solid var(--nh-hairline) !important; border-radius: 16px !important; box-shadow: 0 8px 22px rgba(0,0,0,0.35) !important; transition: transform .2s ease, border-color .2s ease, background-color .2s ease !important; overflow: hidden !important; }
@@ -426,6 +440,9 @@ body.nh-cinematic .configContent, body.nh-cinematic .configContent > *:not(.bg-b
 .nh-er-swatch { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); cursor: pointer; padding: 0; flex: 0 0 auto; }
 .nh-er-swatch.sel { box-shadow: 0 0 0 2px var(--nh-amber, #e0c27a); }
 input.nh-er-color { width: 36px; height: 26px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; background: transparent; padding: 0 2px; cursor: pointer; }
+.nh-er-select { background: rgba(255,255,255,0.06); color: var(--nh-text-1, #eee); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 6px 10px; font-size: 0.9rem; min-width: 14rem; max-width: 100%; cursor: pointer; }
+.nh-er-select:focus { outline: none; border-color: var(--nh-amber, #e0c27a); box-shadow: 0 0 0 1px var(--nh-amber, #e0c27a); }
+.nh-er-select optgroup, .nh-er-select option { background: var(--nh-canvas, #181512); color: var(--nh-text-1, #eee); }
 
 /* ============ MODALS & TABLES ============ */
 .modal.modal-bg { background-color: rgba(14,11,7,0.55) !important; backdrop-filter: blur(2px) !important; -webkit-backdrop-filter: blur(2px) !important; }
@@ -456,12 +473,18 @@ button[role="checkbox"] { border-color: var(--nh-hairline) !important; }
 #mediaPlayerContainer button[aria-label="Play"], #mediaPlayerContainer button[aria-label="Pause"] { box-shadow: 0 0 22px var(--nh-amber-shadow), 0 4px 14px rgba(0,0,0,0.45) !important; }
 #mediaPlayerContainer button[aria-label="Play"] span, #mediaPlayerContainer button[aria-label="Pause"] span { color: #14110d !important; text-shadow: none !important; }
 #mediaPlayerContainer .flex.items-center.justify-center.cursor-pointer.h-full { border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 9px !important; padding: 3px 12px !important; background-color: rgba(0,0,0,0.4) !important; }
-#mediaPlayerContainer .bg-gray-700 { box-shadow: 0 2px 6px rgba(0,0,0,0.6) !important; }
+#mediaPlayerContainer .bg-gray-700 { box-shadow: 0 2px 6px rgba(0,0,0,0.6) !important; border-radius: 9999px !important; }
 #mediaPlayerContainer .bg-gray-700 .bg-gray-200 { background-color: var(--nh-amber) !important; }
 #mediaPlayerContainer .modal { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 #mediaPlayerContainer .modal * { text-shadow: none !important; }
 #mediaPlayerContainer .modal .text-gray-300, #mediaPlayerContainer .modal .text-gray-400 { color: var(--nh-text-2) !important; }
 body:has(#mediaPlayerContainer) [aria-label="Library Sidebar"] .border-t { display: none !important; }
+body:has(#reader) #mediaPlayerContainer { z-index: 61 !important; }
+/* Fill the whole viewport with the reader background when the player is open.
+   Stock shrinks #reader to calc(100% - 164px), exposing the page underneath.
+   Safe: epub.js computes page height in JS (windowHeight - 164), not from this CSS,
+   so text never flows under the floating player. */
+#reader.reader-player-open { height: 100% !important; }
 
 .modal-bg .bg-bg { background-color: var(--nh-canvas) !important; }
 .box-shadow-md, .box-shadow-lg { box-shadow: none !important; }
