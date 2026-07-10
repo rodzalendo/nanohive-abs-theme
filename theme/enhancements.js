@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.60.0  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.61.0  (injected build) */
 
 (function () {
   'use strict';
@@ -1345,10 +1345,13 @@
       slideEls.forEach((el, n) => {
         const card = slides[n].card;
         const banner = el.querySelector('.nh-hero-banner');
+        // Programmatic .click() fires handlers even on v-show-hidden elements (the
+        // hosting card is itself hidden), so no visibility check — routing by cy-id
+        // is what keeps audio and ebook actions apart.
         const clickNative = function (sel) {
           const host = card.querySelector(sel);
-          if (!host || getComputedStyle(host).display === 'none') return false;
-          const b = host.querySelector('.pointer-events-auto') || host;
+          if (!host) return false;
+          const b = host.querySelector('.pointer-events-auto') || host.querySelector('div, button') || host;
           b.click();
           return true;
         };
