@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.58.0  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.60.0  (injected build) */
 
 (function () {
   'use strict';
@@ -1008,6 +1008,9 @@
       }
     }
 
+    let hasAudio = true;
+    let hasEbook = false;
+
     let leftSideText = "0%";
     let rightSideText = `0m ${t.left}`;
     let progressPercent = 0;
@@ -1070,7 +1073,9 @@
           if (!durationSec) durationSec = Number(itemData.media?.duration) || Number(itemData.media?.metadata?.duration) || 0;
 
           const nhEbookFormat = itemData.media?.ebookFormat || itemData.media?.ebookFile?.ebookFormat || '';
-          const isEbookOnly = !Number(itemData.media?.duration) && !!nhEbookFormat;
+          hasAudio = Number(itemData.media?.duration) > 0;
+          hasEbook = !!nhEbookFormat;
+          const isEbookOnly = !hasAudio && hasEbook;
 
           const ump = itemData.userMediaProgress;
           if (ump) {
@@ -1119,7 +1124,7 @@
       } catch (e) {}
     }
 
-    return { card, title, author, coverUrl, leftSideText, rightSideText, progressPercent, tagsHtml, description };
+    return { card, title, author, coverUrl, leftSideText, rightSideText, progressPercent, tagsHtml, description, hasAudio, hasEbook };
   }
 
   function slideMarkup(d, t) {
@@ -1142,9 +1147,12 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 32px; font-family: system-ui, sans-serif;">
-              <button class="nh-hero-play" style="background: var(--nh-amber); color: #14110d; border: none; border-radius: 12px; padding: 14px 32px; font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 0 25px var(--nh-amber-shadow);">
+              ${d.hasAudio ? `<button class="nh-hero-play" style="background: var(--nh-amber); color: #14110d; border: none; border-radius: 12px; padding: 14px 32px; font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 0 25px var(--nh-amber-shadow);">
                 <span class="material-symbols" style="font-size: 1.6rem; color: #14110d;">play_arrow</span> ${t.continue}
-              </button>
+              </button>` : ''}
+              ${d.hasEbook ? `<button class="nh-hero-read" style="background: var(--nh-amber); color: #14110d; border: none; border-radius: 12px; padding: 14px 32px; font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 0 25px var(--nh-amber-shadow);">
+                <span class="material-symbols" style="font-size: 1.6rem; color: #14110d;">auto_stories</span> ${(window.$nuxt && window.$nuxt.$strings && window.$nuxt.$strings.ButtonRead) || 'Read'}
+              </button>` : ''}
 
               <div style="flex: 1; max-width: 320px;">
                 <div style="height: 5px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-bottom: 10px; overflow: hidden;">
@@ -1336,18 +1344,25 @@
       const slideEls = Array.from(heroContainer.querySelectorAll('.nh-hero-slide'));
       slideEls.forEach((el, n) => {
         const card = slides[n].card;
-        const playBtn = el.querySelector('.nh-hero-play');
         const banner = el.querySelector('.nh-hero-banner');
-
-        playBtn.addEventListener('mouseenter', () => playBtn.style.transform = 'scale(1.03)');
-        playBtn.addEventListener('mouseleave', () => playBtn.style.transform = 'scale(1)');
-
-        playBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const nativeBtn = card.querySelector('[cy-id="playButton"] .pointer-events-auto, [cy-id="playButton"] > div, [cy-id="readButton"] .pointer-events-auto, .absolute.top-0.left-0.w-full.h-full.z-10 button');
-          if (nativeBtn) nativeBtn.click();
-          else card.click();
-        });
+        const clickNative = function (sel) {
+          const host = card.querySelector(sel);
+          if (!host || getComputedStyle(host).display === 'none') return false;
+          const b = host.querySelector('.pointer-events-auto') || host;
+          b.click();
+          return true;
+        };
+        const wireBtn = function (btn, sel) {
+          if (!btn) return;
+          btn.addEventListener('mouseenter', () => btn.style.transform = 'scale(1.03)');
+          btn.addEventListener('mouseleave', () => btn.style.transform = 'scale(1)');
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!clickNative(sel)) card.click();
+          });
+        };
+        wireBtn(el.querySelector('.nh-hero-play'), '[cy-id="playButton"]');
+        wireBtn(el.querySelector('.nh-hero-read'), '[cy-id="readButton"]');
 
         banner.addEventListener('click', () => card.click());
       });
