@@ -1,4 +1,4 @@
-/* NanoHive ABS — Book Details Redesign  v1.19.0  (injected build) */
+/* NanoHive ABS — Book Details Redesign  v1.19.1  (injected build) */
 
 (function () {
   'use strict';
@@ -76,13 +76,14 @@
         max-width: 100% !important;
         height: auto !important;
         aspect-ratio: 1 / 1;
+        border-radius: 20px !important;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.6) !important;
+        cursor: zoom-in !important;
+        overflow: hidden !important;
     }
     /* Library set to standard covers: details cover goes 1.6:1 portrait too */
     html.nh-covers-std #item-page-wrapper > div.flex > div:first-child .relative.rounded-xs {
         aspect-ratio: 1 / 1.6;
-        border-radius: 20px !important;
-        box-shadow: 0 30px 60px rgba(0,0,0,0.6) !important;
-        cursor: zoom-in !important;
     }
 
     #item-page-wrapper img[cy-id="coverImage"],
