@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.61.0  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.61.1  (injected build) */
 
 (function () {
   'use strict';
@@ -2029,7 +2029,14 @@
     if (!vm.__nhPatched && typeof vm.applyTheme === 'function') {
       vm.__nhPatched = true;
       const orig = vm.applyTheme.bind(vm);
-      vm.applyTheme = function () { orig(); try { rend.getContents().forEach(nhDecorateContents); } catch (e) {} };
+      // ABS re-applies its theme on EVERY settings change (incl. font-size/spacing),
+      // which resets rendition.themes.font() back to ABS's font. Re-assert ours after
+      // orig() so a size change no longer wipes the reader's chosen NanoHive font.
+      vm.applyTheme = function () {
+        orig();
+        try { const e2 = nhEreaderEff(); if (e2.font) rend.themes.font('"' + e2.font + '", ' + nhFontGeneric(e2.font)); } catch (e) {}
+        try { rend.getContents().forEach(nhDecorateContents); } catch (e) {}
+      };
     }
     const eff = nhEreaderEff();
     try {

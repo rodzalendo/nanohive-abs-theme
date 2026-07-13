@@ -1,4 +1,4 @@
-/* NanoHive ABS — Book Details Redesign  v1.19.1  (injected build) */
+/* NanoHive ABS — Book Details Redesign  v1.20.0  (injected build) */
 
 (function () {
   'use strict';
@@ -119,6 +119,10 @@
         align-items: flex-start !important;
         padding: 0 !important;
         margin-top: 0 !important;
+        /* Grid items default to min-width:auto and refuse to shrink below their
+           content, so a long value (e.g. a 3-genre list) overflowed into the next
+           column. min-width:0 lets it wrap within its own track instead. */
+        min-width: 0 !important;
     }
     .nh-metadata-container .flex.py-0\\.5 > div:first-child {
         width: auto !important;
@@ -137,9 +141,10 @@
         color: #d8cfc2 !important;
         white-space: normal !important;
         word-wrap: break-word !important;
-        overflow-wrap: break-word !important;
+        overflow-wrap: anywhere !important;
         word-break: normal !important;
         line-height: 1.4 !important;
+        max-width: 100% !important;
     }
     .nh-metadata-container .flex.py-0\\.5 > div:last-child a {
         color: #f4eee2 !important;
@@ -278,9 +283,16 @@
     }
 
     #item-page-wrapper .tracksTable {
-        background-color: transparent !important;
+        /* Sit the table in its own softly-recessed rounded panel so it reads as part
+           of the theme instead of floating loose against the page. border-collapse
+           must be separate for border-radius + overflow clipping to take effect. */
+        background: rgba(0,0,0,0.2) !important;
         width: 100% !important;
-        border-collapse: collapse !important;
+        border: none !important;
+        border-radius: 18px !important;
+        overflow: hidden !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
         margin-top: 16px !important;
     }
 
@@ -305,10 +317,14 @@
     }
     #item-page-wrapper .tracksTable td {
         padding: 16px 12px !important;
-        border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+        border-bottom: 1px solid rgba(255,255,255,0.03) !important;
         color: #d8cfc2 !important;
         background-color: transparent !important;
         font-size: 0.95rem !important;
+    }
+    /* No separator under the last row — it would cut across the panel's rounded base. */
+    #item-page-wrapper .tracksTable tr:last-child td {
+        border-bottom: none !important;
     }
     #item-page-wrapper .tracksTable tr:hover td {
         background-color: rgba(255,255,255,0.04) !important;
