@@ -1,0 +1,7 @@
+# These files are copied into a Linux (nginx:alpine) image and executed there.
+# Force LF so a Windows checkout (core.autocrlf=true) can't inject CRLF into the
+# shebang/scripts, which makes the container fail with "05-check-env.sh: not found".
+*.sh            text eol=lf
+*.template      text eol=lf
+*.js            text eol=lf
+docker-entrypoint.sh text eol=lf

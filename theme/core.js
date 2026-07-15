@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.27.72  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.29.1  (injected build) */
 
 (function () {
   'use strict';
@@ -156,6 +156,8 @@ body.nh-pad-page #app-content .page { padding-top: 75px !important; }
 
 /* App Name Alignment & Styling */
 #appbar a[href$="/"] { display: flex !important; align-items: center !important; height: 100% !important; text-decoration: none !important; }
+/* Custom logos are rarely square — never let ABS's fixed w/h box stretch them. */
+#appbar a[href$="/"] img { object-fit: contain !important; }
 #appbar h1 { font-family: var(--nh-serif); font-weight: 500; margin: 0 !important; margin-right: 1.5rem !important; margin-top: 2px !important; line-height: 1 !important; text-decoration: none !important; }
 #appbar a:hover, #appbar a:hover h1 { text-decoration: none !important; }
 
@@ -251,18 +253,46 @@ body.nh-pad-page #app-content .page { padding-top: 75px !important; }
     #toolbar.nh-frosted-toolbar, #toolbar.nh-home-toolbar { left: 0 !important; }
 }
 
-/* ============ FILTER & SORT DROPDOWN MENUS (FROSTED) ============ */
-div.libraryFilterMenu, div.librarySortMenu, div[role="menu"], div.librariesDropdownMenu, div.globalSearchMenu {
-    background-color: rgba(var(--nh-bg-rgb), 0.97) !important;
-    backdrop-filter: blur(20px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+/* ============ DROPDOWN / CONTEXT MENUS — unified NanoHive surface ============ */
+/* EVERY ABS popover box shares Tailwind border-black-200 + shadow-lg, regardless of role
+   or bg colour: ContextMenuDropdown (div role=menu), Sort/Filter selects, GlobalSearch
+   (bg-bg), the library switcher (bg-primary), AND the book-card MoreMenu (plain divs, NO
+   role=menu — which is exactly why the card three-dot kept its stock look). Match that
+   shared signature so all of them are one surface.
+   OPAQUE, not translucent: backdrop-filter blur is unreliable here — ABS wraps cards in
+   transformed ancestors that stop it painting the page behind — so a see-through bg only
+   showed sharp covers ("too transparent"). Near-solid frosted-dark; blur is a bonus only
+   where the browser honours it. */
+.border-black-200.shadow-lg {
+    background-color: rgba(var(--nh-bg-rgb), 0.98) !important;
+    backdrop-filter: blur(22px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
     border: 1px solid var(--nh-hairline-lit) !important;
-    box-shadow: 0 12px 34px rgba(0,0,0,0.65) !important;
-    z-index: 110 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6) !important;
+    padding: 4px !important;
+    /* Set the SANS font on the box itself so every row inherits it even if a future ABS
+       version renames the item classes below (material-symbols icons keep their own font). */
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important;
 }
-div.libraryFilterMenu .bg-bg, div.librarySortMenu .bg-bg, div.libraryFilterMenu ul, div.librarySortMenu ul {
-    background-color: transparent !important;
+/* Items: every menu row (INCLUDING the roleless MoreMenu rows) carries hover:bg-white/5 —
+   the one hook common to all four components. Compact SANS so the theme's serif body font
+   can't widen a label onto a second line ("Show Subtitles"). */
+.border-black-200.shadow-lg [class*="hover:bg-white"],
+.border-black-200.shadow-lg [role="menuitem"] {
+    color: var(--nh-text-2) !important;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
+    border-radius: 9px !important;
+    transition: background-color .12s, color .12s !important;
 }
+.border-black-200.shadow-lg [class*="hover:bg-white"] > *,
+.border-black-200.shadow-lg [role="menuitem"] > * { color: inherit !important; font-family: inherit !important; }
+.border-black-200.shadow-lg [class*="hover:bg-white"]:hover,
+.border-black-200.shadow-lg [role="menuitem"]:hover { background-color: rgba(255,255,255,0.08) !important; color: var(--nh-text-1) !important; }
+/* Selected sort/filter row → amber tint (its text-yellow-400 already maps to --nh-amber). */
+.border-black-200.shadow-lg [role="menuitem"].text-yellow-400 { background-color: var(--nh-amber-tint) !important; }
 .modal [class*="bg-linear-to-t"] { display: none !important; }
 
 /* ============ ZOOM BUTTON FROSTED ============ */
@@ -447,8 +477,32 @@ input.nh-er-color { width: 36px; height: 26px; border: 1px solid rgba(255,255,25
 /* ============ MODALS & TABLES ============ */
 .modal.modal-bg { background-color: rgba(14,11,7,0.55) !important; backdrop-filter: blur(2px) !important; -webkit-backdrop-filter: blur(2px) !important; }
 .modal.modal-bg .bg-bg { background-color: var(--nh-canvas) !important; }
-.modal [style*="max-height: 80vh"], .modal .overflow-y-auto, .modal .overflow-y-scroll { max-height: 85vh !important; }
-.modal trix-editor, .modal .trix-content { min-height: 240px !important; }
+/* Modal outer box: bound to the viewport (ABS ships it at 80vh inline). It scrolls as a
+   whole, so this alone keeps single-scroll modals (e.g. the item editor) usable. */
+.modal [style*="max-height: 80vh"] { max-height: 90vh !important; }
+/* Scroll regions NESTED inside a modal (e.g. the Find-Chapters results list) must leave
+   room for the modal's header + footer buttons. The old rule inflated them to 85vh too,
+   so header + 85vh list + footer overflowed the viewport and the Apply/Map buttons fell
+   off the bottom. Cap nested lists well below the box height instead. */
+.modal [style*="max-height: 80vh"] .overflow-y-auto,
+.modal [style*="max-height: 80vh"] .overflow-y-scroll,
+.modal .max-h-80.overflow-y-auto { max-height: 60vh !important; }
+/* Description rich-text editor (Trix). ABS ships it neutral-gray (rgb(35,35,35)) which
+   clashes with the warm theme — recolour the editor surface and its toolbar. Use
+   background-COLOR (not the shorthand) on buttons so their icon background-image survives. */
+.modal trix-editor, .modal .trix-content {
+    min-height: 240px !important;
+    background-color: rgba(0,0,0,0.2) !important;
+    color: var(--nh-text-2) !important;
+    border: 1px solid var(--nh-hairline-lit) !important;
+    border-radius: 12px !important;
+}
+.modal trix-toolbar { background-color: transparent !important; }
+.modal trix-toolbar .trix-button-group { background-color: transparent !important; border: 1px solid var(--nh-hairline) !important; border-radius: 10px !important; overflow: hidden; }
+.modal trix-toolbar .trix-button { background-color: transparent !important; border-bottom: none !important; }
+.modal trix-toolbar .trix-button:not(:first-child) { border-left: 1px solid var(--nh-hairline) !important; }
+.modal trix-toolbar .trix-button:hover { background-color: var(--nh-amber-tint) !important; }
+.modal trix-toolbar .trix-button.trix-active { background-color: var(--nh-amber-tint) !important; }
 
 .configContent .bg-bg.rounded-md { background-color: var(--nh-raised) !important; border: 1px solid var(--nh-hairline) !important; border-radius: 16px !important; box-shadow: 0 8px 24px rgba(0,0,0,0.30) !important; }
 .configContent h1 { font-size: 1.6rem !important; }
@@ -546,7 +600,10 @@ button.bg-success, button.bg-success *, a.bg-success, a.bg-success *, .abs-btn.b
     #appbar input { width: 100% !important; min-width: 0 !important; flex: 1 1 auto !important; }
     #appbar span.material-symbols, #appbar span.abs-icons { font-size: 1.05rem !important; }
     #appbar a, #appbar button { padding: 4px !important; flex-shrink: 0 !important; }
-    #appbar img { height: 20px !important; }
+    /* Preserve logo aspect ratio on mobile. The old height-only cap left width at the
+       32px min-w-8 box, so object-fit:fill squished square/custom logos to 32x20.
+       Let width track height and never stretch. */
+    #appbar a[href$="/"] img { height: 22px !important; width: auto !important; min-width: 0 !important; max-width: 150px !important; object-fit: contain !important; }
     #appbar h1 { display: none !important; }
     .nh-hide-upload-mobile { display: none !important; }
 
@@ -558,28 +615,37 @@ button.bg-success, button.bg-success *, a.bg-success, a.bg-success *, .abs-btn.b
     #bookshelf h1, #bookshelf .text-3xl, #bookshelf .text-4xl, #bookshelf .text-5xl { font-size: 1.3rem !important; line-height: 1.15 !important; }
     .bookshelf-row h2, .nh-rs-heading { font-size: 1.05rem !important; }
 
-    /* Hero: single centered stack. Child 1=bg, 2=gradient, 3=text column, 4=cover. */
-    .nh-hero-banner { flex-direction: column !important; align-items: center !important; text-align: center !important; padding: 16px !important; gap: 0 !important; border-radius: 14px !important; }
-    .nh-hero-banner > div:nth-child(4) { order: 1 !important; width: 110px !important; height: 110px !important; margin: 0 auto 10px !important; flex-shrink: 0 !important; }
-    .nh-hero-banner > div:nth-child(4) img { width: 100% !important; height: 100% !important; object-fit: cover !important; border-radius: 10px !important; }
+}
+
+/* Hero: on portrait / narrow widths (phone AND tablet, up to 1023px) the desktop
+   2-column layout leaves a big central gap, a truncated title, and blank space below
+   the buttons. Use a centered vertical stack that fills the width. Sizes scale with the
+   viewport (clamp) so one block covers ~320-1023px. Child 1=bg, 2=gradient, 3=text, 4=cover. */
+@media (max-width: 1023.98px) {
+    #nh-hero-container { width: 100% !important; padding-right: 0 !important; }
+    .nh-hero-banner { flex-direction: column !important; align-items: center !important; text-align: center !important; padding: clamp(20px, 4vw, 40px) clamp(18px, 4vw, 44px) !important; gap: 0 !important; border-radius: 18px !important; }
+    /* cover on top — real portrait aspect, responsive, never cropped */
+    .nh-hero-banner > div:nth-child(4) { order: 1 !important; width: auto !important; height: auto !important; margin: 0 auto clamp(14px, 2.5vw, 22px) !important; flex-shrink: 0 !important; }
+    .nh-hero-banner > div:nth-child(4) img { width: auto !important; height: clamp(150px, 26vw, 250px) !important; max-width: 62vw !important; object-fit: contain !important; border-radius: 12px !important; }
+    /* text column: full width, centered */
     .nh-hero-banner > div:nth-child(3) { order: 2 !important; width: 100% !important; padding-right: 0 !important; min-width: 0 !important; align-items: center !important; }
-    .nh-hero-banner > div:nth-child(3) > div:nth-child(1) { display: none !important; }
+    .nh-hero-banner > div:nth-child(3) > div:nth-child(1) { margin-bottom: 10px !important; }
     .nh-hero-title {
-        font-size: 1.05rem !important; line-height: 1.25 !important; margin: 0 auto 3px !important; padding-bottom: 0 !important;
-        white-space: normal !important; overflow: hidden !important; text-overflow: ellipsis !important;
+        white-space: normal !important; font-size: clamp(1.4rem, 4.2vw, 2.6rem) !important; line-height: 1.2 !important;
         display: -webkit-box !important; -webkit-line-clamp: 2 !important; -webkit-box-orient: vertical !important;
-        text-align: center !important; max-width: 100% !important;
+        overflow: hidden !important; text-align: center !important; margin: 0 auto 6px !important; max-width: 100% !important; padding-bottom: 0 !important;
     }
-    .nh-hero-banner > div:nth-child(3) > div:nth-child(3) { font-size: 0.72rem !important; margin-bottom: 6px !important; text-align: center !important; }
-    .nh-hero-banner div[style*="line-clamp"] { display: none !important; }
-    .nh-hero-banner > div:nth-child(3) > div:nth-child(4) { justify-content: center !important; margin-bottom: 8px !important; gap: 5px !important; }
-    span[style*="border-radius: 20px"][style*="backdrop-filter"] { font-size: 0.58rem !important; padding: 2px 6px !important; }
-    .nh-hero-banner > div:nth-child(3) > div:last-child { justify-content: center !important; flex-wrap: wrap !important; gap: 10px !important; width: 100% !important; }
-    .nh-hero-play { padding: 6px 14px !important; font-size: 0.8rem !important; border-radius: 8px !important; }
-    .nh-hero-play span.material-symbols { font-size: 1.05rem !important; }
-    .nh-hero-banner div[style*="flex: 1; max-width: 320px"] { max-width: 200px !important; flex: none !important; width: 100% !important; }
-    #nh-hero-nav { margin-top: 10px !important; }
-    #nh-hero-nav .nh-nav-arrow { width: 30px !important; height: 30px !important; }
+    .nh-hero-banner > div:nth-child(3) > div:nth-child(3) { font-size: clamp(0.85rem, 2vw, 1.15rem) !important; margin-bottom: 14px !important; text-align: center !important; }
+    /* description: keep it (it fills the space) but clamp + constrain + center */
+    .nh-hero-banner div[style*="line-clamp"] { display: -webkit-box !important; -webkit-line-clamp: 3 !important; font-size: clamp(0.85rem, 1.8vw, 1.05rem) !important; line-height: 1.5 !important; margin: 0 auto 18px !important; max-width: 560px !important; text-align: center !important; }
+    .nh-hero-banner > div:nth-child(3) > div:nth-child(4) { justify-content: center !important; margin-bottom: 16px !important; gap: 8px !important; }
+    span[style*="border-radius: 20px"][style*="backdrop-filter"] { font-size: clamp(0.6rem, 1.4vw, 0.8rem) !important; padding: 3px 9px !important; }
+    /* button + progress row: center + wrap; progress sits under the button on narrow */
+    .nh-hero-banner > div:nth-child(3) > div:last-child { justify-content: center !important; flex-wrap: wrap !important; gap: 16px !important; width: 100% !important; }
+    .nh-hero-play, .nh-hero-read { padding: clamp(9px, 1.6vw, 14px) clamp(20px, 3.2vw, 32px) !important; font-size: clamp(0.9rem, 1.9vw, 1.15rem) !important; border-radius: 10px !important; }
+    .nh-hero-banner div[style*="flex: 1; max-width: 320px"] { max-width: 360px !important; flex: 1 1 220px !important; width: 100% !important; }
+    #nh-hero-nav { margin-top: 16px !important; }
+    #nh-hero-nav .nh-nav-arrow { width: clamp(32px, 5vw, 40px) !important; height: clamp(32px, 5vw, 40px) !important; }
 }
 
 /* Series-page header (built by enhancements.js). All header styling lives HERE, not in

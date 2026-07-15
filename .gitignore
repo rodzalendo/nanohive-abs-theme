@@ -1,2 +1,6 @@
 *.tar.gz
 .DS_Store
+
+# Local dev/test scaffolding (see docker-compose.local.yml)
+/docker-compose.local.yml
+/.local/

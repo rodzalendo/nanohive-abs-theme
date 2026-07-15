@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.61.1  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.64.0  (injected build) */
 
 (function () {
   'use strict';
@@ -133,7 +133,7 @@
         nhLastCrMode = nhSettings.continueReadingMode;
         const hc = document.getElementById('nh-hero-container');
         if (hc) hc.remove();
-        document.querySelectorAll('.bookshelf-row[data-hero-injected="true"]').forEach(function (r) {
+        document.querySelectorAll('[data-hero-injected="true"]').forEach(function (r) {
           r.style.display = '';
           Array.from(r.children).forEach(function (c) { if (c.id !== 'nh-hero-container') c.style.display = ''; });
           delete r.dataset.heroInjected;
@@ -195,7 +195,7 @@
         brand.textContent = nhSettings.appName || 'audiobookshelf';
       });
 
-      const shelves = Array.from(document.querySelectorAll('.bookshelf-row'));
+      const shelves = nhShelfRows();
       shelves.forEach(row => {
         const h2 = row.querySelector('h2');
         if (!h2) return;
@@ -312,8 +312,8 @@
   }
 
   const PANEL_T = {
-    en: {"title": "Theme Customizations", "subtitle": "Personalise the look of your library. Changes save automatically.", "branding": "Branding & Style", "colour": "Colour & Theme", "homeCar": "Home & Carousel", "sidebar": "Sidebar Menus", "appName": "App Name", "appNameHint": "Leave empty for the default name.", "logoUrl": "Custom Logo URL", "logoHint": "Leave empty for the default logo.", "accent": "Accent Colour", "baseTheme": "Base Theme", "mainFont": "Main Font", "carousel": "Carousel Auto-Advance", "carouselHint": "Seconds between slides. Set to 0 to disable.", "customSeries": "Expanded Recent Series", "seriesCount": "Recent Series Count", "seriesCountHint": "How many series to show in the expanded shelf.", "hideShelves": "Hide Homepage Shelves", "sidebarHint": "Hide left-rail entries you don't use.", "showAppName": "Show App Name Text", "colorizeLogo": "Colorize Logo with Accent Colour", "hideSeries": "Hide Series", "hideCollections": "Hide Collections", "hideAuthors": "Hide Authors", "hideNarrators": "Hide Narrators", "hideStats": "Hide Stats", "hideRecentlyAdded": "Hide Recently Added", "hideRecentSeries": "Hide Recent Series", "hideContinueSeries": "Hide Continue Series", "hideListenAgain": "Hide Listen Again", "hideDiscover": "Hide Discover", "hideNewestAuthors": "Hide Newest Authors", "seriesCards": "Stacked Series Covers", "heroCarousel": "Home Carousel", "gearLabel": "Theme", "srvTitle": "Server Defaults", "srvHint": "Save your current settings as the defaults for every user of this server. Users can still personalise their own look on top. Mount a volume at /data/nh in the theme container to keep these across updates.", "srvSave": "Save as server defaults", "srvClear": "Clear server defaults", "srvSaved": "Saved", "srvCleared": "Cleared", "srvErr": "Failed — admin login required", "crMode": "Continue Reading Shelf", "crCombine": "Combine into carousel", "crSeparate": "Keep as separate shelf", "crHide": "Hidden"},
-    pl: {"title": "Personalizacja motywu", "subtitle": "Dostosuj wygląd swojej biblioteki. Zmiany zapisują się automatycznie.", "branding": "Marka i styl", "colour": "Kolor i motyw", "homeCar": "Strona główna i karuzela", "sidebar": "Menu boczne", "appName": "Nazwa aplikacji", "appNameHint": "Pozostaw puste, aby użyć domyślnej nazwy.", "logoUrl": "Adres URL własnego logo", "logoHint": "Pozostaw puste, aby użyć domyślnego logo.", "accent": "Kolor akcentu", "baseTheme": "Motyw bazowy", "mainFont": "Czcionka główna", "carousel": "Automatyczne przewijanie karuzeli", "carouselHint": "Sekundy między slajdami. Ustaw 0, aby wyłączyć.", "customSeries": "Rozszerzone ostatnie serie", "seriesCount": "Liczba ostatnich serii", "seriesCountHint": "Ile serii pokazać na rozszerzonej półce.", "hideShelves": "Ukryj półki strony głównej", "sidebarHint": "Ukryj nieużywane pozycje menu bocznego.", "showAppName": "Pokaż nazwę aplikacji", "colorizeLogo": "Pokoloruj logo kolorem akcentu", "hideSeries": "Ukryj Serie", "hideCollections": "Ukryj Kolekcje", "hideAuthors": "Ukryj Autorów", "hideNarrators": "Ukryj Lektorów", "hideStats": "Ukryj Statystyki", "hideRecentlyAdded": "Ukryj Ostatnio dodane", "hideRecentSeries": "Ukryj Ostatnie serie", "hideContinueSeries": "Ukryj Kontynuuj serię", "hideListenAgain": "Ukryj Słuchaj ponownie", "hideDiscover": "Ukryj Odkrywaj", "hideNewestAuthors": "Ukryj Najnowszych autorów", "seriesCards": "Nakładane okładki serii", "heroCarousel": "Karuzela na stronie głównej", "gearLabel": "Motyw", "srvTitle": "Domyślne ustawienia serwera", "srvHint": "Zapisz bieżące ustawienia jako domyślne dla wszystkich użytkowników tego serwera. Użytkownicy nadal mogą personalizować swój wygląd. Zamontuj wolumin w /data/nh w kontenerze motywu, aby zachować je między aktualizacjami.", "srvSave": "Zapisz jako domyślne serwera", "srvClear": "Wyczyść domyślne serwera", "srvSaved": "Zapisano", "srvCleared": "Wyczyszczono", "srvErr": "Błąd — wymagane konto administratora", "crMode": "Półka Kontynuuj czytanie", "crCombine": "Połącz z karuzelą", "crSeparate": "Osobna półka", "crHide": "Ukryta"},
+    en: {"title": "Theme Customizations", "subtitle": "Personalise the look of your library. Changes save automatically.", "branding": "Branding & Style", "colour": "Colour & Theme", "homeCar": "Home & Carousel", "sidebar": "Sidebar Menus", "appName": "App Name", "appNameHint": "Leave empty for the default name.", "logoUrl": "Custom Logo URL", "logoHint": "Leave empty for the default logo.", "accent": "Accent Colour", "baseTheme": "Base Theme", "mainFont": "Main Font", "carousel": "Carousel Auto-Advance", "carouselHint": "Seconds between slides. Set to 0 to disable.", "customSeries": "Expanded Recent Series", "seriesCount": "Recent Series Count", "seriesCountHint": "How many series to show in the expanded shelf.", "hideShelves": "Hide Homepage Shelves", "sidebarHint": "Hide left-rail entries you don't use.", "showAppName": "Show App Name Text", "colorizeLogo": "Colorize Logo with Accent Colour", "hideSeries": "Hide Series", "hideCollections": "Hide Collections", "hideAuthors": "Hide Authors", "hideNarrators": "Hide Narrators", "hideStats": "Hide Stats", "hideRecentlyAdded": "Hide Recently Added", "hideRecentSeries": "Hide Recent Series", "hideContinueSeries": "Hide Continue Series", "hideListenAgain": "Hide Listen Again", "hideDiscover": "Hide Discover", "hideNewestAuthors": "Hide Newest Authors", "seriesCards": "Stacked Series Covers", "heroCarousel": "Home Carousel", "gearLabel": "Theme", "srvTitle": "Server Defaults", "srvHint": "Save your current settings as the defaults for every user of this server. Users can still personalise their own look on top. Mount a volume at /data/nh in the theme container to keep these across updates.", "srvSave": "Save as server defaults", "srvClear": "Clear server defaults", "srvSaved": "Saved", "srvCleared": "Cleared", "srvErr": "Failed — admin login required", "crMode": "Continue Reading Shelf", "crCombine": "Combine into carousel", "crSeparate": "Keep as separate shelf", "crHide": "Hidden", "logoUpload": "Upload from device…", "logoUploaded": "Uploaded ✓", "logoBadType": "Unsupported image type", "logoTooBig": "Image too large (max 4 MB)", "logoOr": "or"},
+    pl: {"title": "Personalizacja motywu", "subtitle": "Dostosuj wygląd swojej biblioteki. Zmiany zapisują się automatycznie.", "branding": "Marka i styl", "colour": "Kolor i motyw", "homeCar": "Strona główna i karuzela", "sidebar": "Menu boczne", "appName": "Nazwa aplikacji", "appNameHint": "Pozostaw puste, aby użyć domyślnej nazwy.", "logoUrl": "Adres URL własnego logo", "logoHint": "Pozostaw puste, aby użyć domyślnego logo.", "accent": "Kolor akcentu", "baseTheme": "Motyw bazowy", "mainFont": "Czcionka główna", "carousel": "Automatyczne przewijanie karuzeli", "carouselHint": "Sekundy między slajdami. Ustaw 0, aby wyłączyć.", "customSeries": "Rozszerzone ostatnie serie", "seriesCount": "Liczba ostatnich serii", "seriesCountHint": "Ile serii pokazać na rozszerzonej półce.", "hideShelves": "Ukryj półki strony głównej", "sidebarHint": "Ukryj nieużywane pozycje menu bocznego.", "showAppName": "Pokaż nazwę aplikacji", "colorizeLogo": "Pokoloruj logo kolorem akcentu", "hideSeries": "Ukryj Serie", "hideCollections": "Ukryj Kolekcje", "hideAuthors": "Ukryj Autorów", "hideNarrators": "Ukryj Lektorów", "hideStats": "Ukryj Statystyki", "hideRecentlyAdded": "Ukryj Ostatnio dodane", "hideRecentSeries": "Ukryj Ostatnie serie", "hideContinueSeries": "Ukryj Kontynuuj serię", "hideListenAgain": "Ukryj Słuchaj ponownie", "hideDiscover": "Ukryj Odkrywaj", "hideNewestAuthors": "Ukryj Najnowszych autorów", "seriesCards": "Nakładane okładki serii", "heroCarousel": "Karuzela na stronie głównej", "gearLabel": "Motyw", "srvTitle": "Domyślne ustawienia serwera", "srvHint": "Zapisz bieżące ustawienia jako domyślne dla wszystkich użytkowników tego serwera. Użytkownicy nadal mogą personalizować swój wygląd. Zamontuj wolumin w /data/nh w kontenerze motywu, aby zachować je między aktualizacjami.", "srvSave": "Zapisz jako domyślne serwera", "srvClear": "Wyczyść domyślne serwera", "srvSaved": "Zapisano", "srvCleared": "Wyczyszczono", "srvErr": "Błąd — wymagane konto administratora", "crMode": "Półka Kontynuuj czytanie", "crCombine": "Połącz z karuzelą", "crSeparate": "Osobna półka", "crHide": "Ukryta", "logoUpload": "Wgraj z urządzenia…", "logoUploaded": "Wgrano ✓", "logoBadType": "Nieobsługiwany typ obrazu", "logoTooBig": "Obraz za duży (maks. 4 MB)", "logoOr": "lub"},
     de: {"title": "Design-Anpassungen", "subtitle": "Personalisiere das Aussehen deiner Bibliothek. Änderungen werden automatisch gespeichert.", "branding": "Branding & Stil", "colour": "Farbe & Design", "homeCar": "Startseite & Karussell", "sidebar": "Seitenmenüs", "appName": "App-Name", "appNameHint": "Leer lassen für den Standardnamen.", "logoUrl": "Eigene Logo-URL", "logoHint": "Leer lassen für das Standardlogo.", "accent": "Akzentfarbe", "baseTheme": "Basis-Design", "mainFont": "Hauptschriftart", "carousel": "Karussell-Autowechsel", "carouselHint": "Sekunden zwischen Folien. 0 zum Deaktivieren.", "customSeries": "Erweiterte neueste Serien", "seriesCount": "Anzahl neuester Serien", "seriesCountHint": "Wie viele Serien im erweiterten Regal gezeigt werden.", "hideShelves": "Startseiten-Regale ausblenden", "sidebarHint": "Nicht genutzte Menüeinträge ausblenden.", "showAppName": "App-Namen anzeigen", "colorizeLogo": "Logo mit Akzentfarbe einfärben", "hideSeries": "Serien ausblenden", "hideCollections": "Sammlungen ausblenden", "hideAuthors": "Autoren ausblenden", "hideNarrators": "Sprecher ausblenden", "hideStats": "Statistiken ausblenden", "hideRecentlyAdded": "Kürzlich hinzugefügt ausblenden", "hideRecentSeries": "Neueste Serien ausblenden", "hideContinueSeries": "Serie fortsetzen ausblenden", "hideListenAgain": "Erneut anhören ausblenden", "hideDiscover": "Entdecken ausblenden", "hideNewestAuthors": "Neueste Autoren ausblenden", "seriesCards": "Gestapelte Serien-Cover", "heroCarousel": "Startseiten-Karussell", "gearLabel": "Design", "srvTitle": "Server-Standardwerte", "srvHint": "Speichere deine aktuellen Einstellungen als Standard für alle Nutzer dieses Servers. Nutzer können ihren Look weiterhin selbst anpassen. Binde ein Volume unter /data/nh im Theme-Container ein, um sie über Updates hinweg zu behalten.", "srvSave": "Als Server-Standard speichern", "srvClear": "Server-Standard löschen", "srvSaved": "Gespeichert", "srvCleared": "Gelöscht", "srvErr": "Fehlgeschlagen — Admin-Anmeldung erforderlich", "crMode": "Weiterlesen-Regal", "crCombine": "In Karussell integrieren", "crSeparate": "Als eigenes Regal", "crHide": "Ausgeblendet"},
     fr: {"title": "Personnalisation du thème", "subtitle": "Personnalisez l’apparence de votre bibliothèque. Les modifications sont enregistrées automatiquement.", "branding": "Image de marque et style", "colour": "Couleur et thème", "homeCar": "Accueil et carrousel", "sidebar": "Menus latéraux", "appName": "Nom de l’application", "appNameHint": "Laissez vide pour le nom par défaut.", "logoUrl": "URL du logo personnalisé", "logoHint": "Laissez vide pour le logo par défaut.", "accent": "Couleur d’accent", "baseTheme": "Thème de base", "mainFont": "Police principale", "carousel": "Défilement automatique du carrousel", "carouselHint": "Secondes entre les diapositives. 0 pour désactiver.", "customSeries": "Séries récentes étendues", "seriesCount": "Nombre de séries récentes", "seriesCountHint": "Nombre de séries à afficher dans l’étagère étendue.", "hideShelves": "Masquer les étagères d’accueil", "sidebarHint": "Masquer les entrées du menu latéral inutilisées.", "showAppName": "Afficher le nom de l’application", "colorizeLogo": "Coloriser le logo avec la couleur d’accent", "hideSeries": "Masquer les séries", "hideCollections": "Masquer les collections", "hideAuthors": "Masquer les auteurs", "hideNarrators": "Masquer les narrateurs", "hideStats": "Masquer les statistiques", "hideRecentlyAdded": "Masquer Ajouts récents", "hideRecentSeries": "Masquer Séries récentes", "hideContinueSeries": "Masquer Continuer la série", "hideListenAgain": "Masquer Réécouter", "hideDiscover": "Masquer Découvrir", "hideNewestAuthors": "Masquer Nouveaux auteurs", "seriesCards": "Couvertures de séries empilées", "heroCarousel": "Carrousel d’accueil", "gearLabel": "Thème"},
     es: {"title": "Personalización del tema", "subtitle": "Personaliza el aspecto de tu biblioteca. Los cambios se guardan automáticamente.", "branding": "Marca y estilo", "colour": "Color y tema", "homeCar": "Inicio y carrusel", "sidebar": "Menús laterales", "appName": "Nombre de la aplicación", "appNameHint": "Déjalo vacío para el nombre predeterminado.", "logoUrl": "URL de logotipo personalizado", "logoHint": "Déjalo vacío para el logotipo predeterminado.", "accent": "Color de acento", "baseTheme": "Tema base", "mainFont": "Fuente principal", "carousel": "Avance automático del carrusel", "carouselHint": "Segundos entre diapositivas. 0 para desactivar.", "customSeries": "Series recientes ampliadas", "seriesCount": "Número de series recientes", "seriesCountHint": "Cuántas series mostrar en el estante ampliado.", "hideShelves": "Ocultar estantes de inicio", "sidebarHint": "Oculta entradas del menú lateral que no uses.", "showAppName": "Mostrar nombre de la aplicación", "colorizeLogo": "Colorear logotipo con el color de acento", "hideSeries": "Ocultar Series", "hideCollections": "Ocultar Colecciones", "hideAuthors": "Ocultar Autores", "hideNarrators": "Ocultar Narradores", "hideStats": "Ocultar Estadísticas", "hideRecentlyAdded": "Ocultar Añadidos recientemente", "hideRecentSeries": "Ocultar Series recientes", "hideContinueSeries": "Ocultar Continuar serie", "hideListenAgain": "Ocultar Escuchar de nuevo", "hideDiscover": "Ocultar Descubrir", "hideNewestAuthors": "Ocultar Autores más recientes", "seriesCards": "Portadas de series apiladas", "heroCarousel": "Carrusel de inicio", "gearLabel": "Tema"},
@@ -376,6 +376,8 @@
       #nh-settings-panel .nh-hint { font-size: 0.74rem; color: var(--nh-muted, #9a9085); margin: -2px 0 8px; }
       #nh-settings-panel input[type=text], #nh-settings-panel input[type=number] { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid var(--nh-hairline-lit, rgba(255,255,255,0.14)); border-radius: 10px; padding: 10px 13px; color: var(--nh-text-1, #f4eee2); outline: none; transition: border-color .15s; font-size: 0.95rem; }
       #nh-settings-panel input[type=text]:focus, #nh-settings-panel input[type=number]:focus { border-color: var(--nh-amber); }
+      #nh-settings-panel .nh-upload-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--nh-hairline-lit, rgba(255,255,255,0.14)); border-radius: 10px; padding: 9px 16px; color: var(--nh-text-1, #f4eee2); font-size: 0.86rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s; }
+      #nh-settings-panel .nh-upload-btn:hover { background: var(--nh-amber-tint, rgba(224,194,122,0.14)); border-color: var(--nh-amber); }
       #nh-settings-panel .nh-subhead { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--nh-muted, #9a9085); margin: 4px 0 6px; }
       #nh-settings-panel .nh-toggle-group { border-left: 2px solid var(--nh-hairline, rgba(255,255,255,0.07)); padding-left: 14px; }
       #nh-settings-panel .nh-divider { border-top: 1px solid var(--nh-hairline, rgba(255,255,255,0.08)); margin: 22px 0; }
@@ -479,7 +481,12 @@
           <div class="nh-field">
             <label class="nh-label">${T.logoUrl}</label>
             <p class="nh-hint">${T.logoHint}</p>
-            <input type="text" id="nh-in-logo" placeholder="https://...">
+            <input type="text" id="nh-in-logo" placeholder="https://... ${T.logoOr || 'or'} /_nh/logo.png">
+            <div id="nh-logo-upload-row" style="display:none; align-items:center; gap:10px; margin-top:10px;">
+              <input type="file" id="nh-in-logo-file" accept="image/png,image/svg+xml,image/jpeg,image/webp,image/gif,image/avif,image/x-icon" style="display:none">
+              <button type="button" id="nh-logo-upload-btn" class="nh-upload-btn">${T.logoUpload || 'Upload from device…'}</button>
+              <span id="nh-logo-upload-status" class="nh-hint" style="margin:0;"></span>
+            </div>
           </div>
           <div class="nh-field" id="nh-tog-colorize"></div>
         </section>
@@ -576,6 +583,41 @@
         if (colorizeTogBtn) colorizeTogBtn.className = 'border rounded-full flex items-center bg-primary border-black-100 justify-start';
       }
     });
+
+    // Logo upload (admin only): browse a device image, PUT it into the /data/nh volume,
+    // then point the logo at the same-origin /_nh/logo.<ext> so it renders with NO internet.
+    const logoUploadRow = panel.querySelector('#nh-logo-upload-row');
+    if (logoUploadRow && isUserAdmin()) {
+      logoUploadRow.style.display = 'flex';
+      const logoFile = panel.querySelector('#nh-in-logo-file');
+      const logoStatus = panel.querySelector('#nh-logo-upload-status');
+      panel.querySelector('#nh-logo-upload-btn').addEventListener('click', () => logoFile.click());
+      logoFile.addEventListener('change', () => {
+        const file = logoFile.files && logoFile.files[0];
+        if (!file) return;
+        const byMime = { 'image/png': 'png', 'image/svg+xml': 'svg', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif', 'image/x-icon': 'ico', 'image/vnd.microsoft.icon': 'ico' };
+        let ext = byMime[file.type] || (file.name.split('.').pop() || '').toLowerCase();
+        if (ext === 'jpeg') ext = 'jpg';
+        if (!/^(png|svg|jpg|webp|gif|avif|ico)$/.test(ext)) { logoStatus.textContent = T.logoBadType || PANEL_T.en.logoBadType; logoFile.value = ''; return; }
+        if (file.size > 4 * 1024 * 1024) { logoStatus.textContent = T.logoTooBig || PANEL_T.en.logoTooBig; logoFile.value = ''; return; }
+        logoStatus.textContent = '…';
+        let token = '';
+        try { const st = window.$nuxt.$store; token = st.getters['user/getToken'] || (st.state.user.user && (st.state.user.user.accessToken || st.state.user.user.token)) || ''; } catch (e) {}
+        fetch('/_nh/data/logo.' + ext, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token }, body: file })
+          .then((r) => {
+            if (!r.ok) { logoStatus.textContent = T.srvErr || PANEL_T.en.srvErr; return; }
+            // Cache-bust in the stored URL so the new logo shows at once and re-uploads
+            // refresh too (applySettings re-asserts this exact src each tick).
+            nhSettings.logoUrl = '/_nh/logo.' + ext + '?v=' + Date.now();
+            logoInput.value = nhSettings.logoUrl;
+            saveSettings(); applySettings();
+            logoStatus.textContent = T.logoUploaded || PANEL_T.en.logoUploaded;
+            setTimeout(() => { logoStatus.textContent = ''; }, 2500);
+          })
+          .catch(() => { logoStatus.textContent = T.srvErr || PANEL_T.en.srvErr; });
+        logoFile.value = '';
+      });
+    }
 
     bindInput('#nh-in-carousel', 'carouselTiming');
     bindInput('#nh-in-series-count', 'recentSeriesCount');
@@ -1137,7 +1179,7 @@
 
           <div style="position: relative; z-index: 2; flex: 1; min-width: 0; padding-right: 64px; display: flex; flex-direction: column;">
             <div style="color: var(--nh-amber); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; font-family: system-ui, sans-serif;">${t.pickup}</div>
-            <div class="nh-hero-title" style="font-family: var(--nh-serif); font-size: 3.4rem; font-weight: 600; line-height: 1.25; color: #ffffff; margin-bottom: 8px; padding-bottom: 4px; letter-spacing: -0.01em; text-shadow: 0 2px 10px rgba(0,0,0,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${d.title}</div>
+            <div class="nh-hero-title" style="font-family: var(--nh-serif); font-size: 3.4rem; font-weight: 600; line-height: 1.2; color: #ffffff; margin-bottom: 8px; padding-bottom: 4px; letter-spacing: -0.01em; text-shadow: 0 2px 10px rgba(0,0,0,0.5); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%;">${d.title}</div>
             <div style="font-size: 1.25rem; color: #d8cfc2; margin-bottom: 20px; font-family: system-ui, sans-serif;">${t.by ? t.by + ' ' : ''}${d.author}</div>
 
             ${d.tagsHtml ? `<div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; font-family: system-ui, sans-serif;">${d.tagsHtml}</div>` : ''}
@@ -1174,12 +1216,90 @@
     `;
   }
 
+  // ------------------------------------------------------------------
+  // Home-page DOM compatibility (ABS home-view modes + newer builds)
+  // ------------------------------------------------------------------
+  // ABS renders the home shelves in two different ways, and the theme has to work
+  // in both — plus stay resilient to newer builds that restructure the card DOM:
+  //
+  //  • DETAIL view    : each shelf is a `.bookshelf-row` (widgets-item-slider) that
+  //                     directly contains its <h2> heading and its cards.
+  //  • STANDARD view  : the ABS DEFAULT (skeuomorphic). The card strip carries
+  //    (skeuomorphic)   `.bookshelf-row.categorizedBookshelfRow`, but the <h2> lives
+  //                     in a SIBLING placard, so `strip.querySelector('h2')` is null.
+  //                     The real per-shelf container is the strip's component-root
+  //                     parent, which holds both the placard <h2> and the strip; its
+  //                     Vue instance also exposes `shelf.id` (continue-listening, …).
+  //  • newer builds   : may drop `.bookshelf-row` entirely and expose only
+  //                     `[id^="cover-area-"]` cards — derive shelves from headings.
+  //
+  // The hero + shelf logic below routes every shelf/card lookup through these three
+  // helpers so it no longer assumes the DETAIL-view DOM. (Reported by a user on the
+  // default STANDARD view: hero carousel never appeared because `.bookshelf-row`
+  // rows had no <h2> inside them.)
+
+  // Every card-like element inside a shelf. Tiered so builds that expose BOTH the
+  // book-card wrapper AND its inner cover-area don't count each card twice.
+  const NH_CARD_SEL = '[cy-id="card"], [id^="book-card-"]';
+  function nhCardsIn(root) {
+    if (!root) return [];
+    let cards = Array.from(root.querySelectorAll(NH_CARD_SEL));
+    if (!cards.length) cards = Array.from(root.querySelectorAll('[id^="cover-area-"]'));
+    return cards;
+  }
+
+  // Stable shelf id from a shelf row's Vue instance, across both home views
+  // (DETAIL exposes `shelfId`; STANDARD exposes `shelf.id`).
+  function nhShelfId(row) {
+    const vm = row && row.__vue__;
+    if (!vm) return null;
+    return vm.shelfId || (vm.$props && vm.$props.shelfId) || (vm.shelf && vm.shelf.id) || null;
+  }
+
+  // The home-page shelf rows: elements that each contain ONE shelf's heading and
+  // its cards. Falls through DETAIL → STANDARD → classless newer builds.
+  function nhShelfRows() {
+    const scope = document.getElementById('bookshelf');
+    if (!scope) return [];
+    const strips = Array.from(scope.querySelectorAll('.bookshelf-row'));
+    if (strips.length) {
+      const rows = [];
+      strips.forEach(function (strip) {
+        let row = strip;
+        // STANDARD view: the heading is a sibling placard, so climb to the shelf
+        // component root that holds both the <h2> and this strip.
+        if (!strip.querySelector('h2')) {
+          let p = strip.parentElement, hops = 0;
+          while (p && p !== scope && hops < 4) {
+            if (p.querySelector('h2')) { row = p; break; }
+            p = p.parentElement; hops++;
+          }
+        }
+        if (rows.indexOf(row) === -1) rows.push(row);
+      });
+      return rows;
+    }
+    // Newer builds with no `.bookshelf-row` at all: anchor each shelf on its heading
+    // and climb to the nearest ancestor that also holds its cards/covers.
+    const anyCard = NH_CARD_SEL + ', [id^="cover-area-"]';
+    const rows = [];
+    scope.querySelectorAll('h2').forEach(function (h2) {
+      let el = h2.parentElement, hops = 0, row = null;
+      while (el && el !== scope.parentElement && hops < 8) {
+        if (el.querySelector(anyCard)) { row = el; break; }
+        el = el.parentElement; hops++;
+      }
+      if (row && rows.indexOf(row) === -1) rows.push(row);
+    });
+    return rows;
+  }
+
   async function injectHeroBanner() {
     // Toggle off: remove the hero and restore the stock Continue Listening shelf.
     if (nhSettings.showHeroCarousel === false) {
       const ex = document.getElementById('nh-hero-container');
       if (ex) ex.remove();
-      document.querySelectorAll('.bookshelf-row[data-hero-injected="true"]').forEach(function (injectedRow) {
+      document.querySelectorAll('[data-hero-injected="true"]').forEach(function (injectedRow) {
         injectedRow.style.display = '';
         Array.from(injectedRow.children).forEach(c => { if (c.id !== 'nh-hero-container') c.style.display = ''; });
         delete injectedRow.dataset.heroInjected;
@@ -1190,10 +1310,7 @@
     // 'hide' hides the whole row; leaving 'hide' restores it (combined rows are
     // restored by the mode-change teardown in applySettings instead).
     const nhFindShelf = function (sid) {
-      return Array.prototype.find.call(document.querySelectorAll('.bookshelf-row'), function (r) {
-        const vm = r.__vue__;
-        return vm && (vm.shelfId === sid || (vm.$props && vm.$props.shelfId === sid));
-      });
+      return nhShelfRows().find(function (r) { return nhShelfId(r) === sid; });
     };
     const crRow = nhFindShelf('continue-reading');
     if (crRow) {
@@ -1206,10 +1323,9 @@
     // Identify Continue Listening structurally (shelfId prop on the slider's Vue
     // instance) — header-text matching missed languages like Spanish ("Seguir
     // Escuchando"), so the carousel never appeared there. Text match kept as fallback.
-    const rows = Array.from(document.querySelectorAll('.bookshelf-row'));
+    const rows = nhShelfRows();
     const row = rows.find(r => {
-      const vm = r.__vue__;
-      const sid = vm && (vm.shelfId || (vm.$props && vm.$props.shelfId));
+      const sid = nhShelfId(r);
       if (sid) return sid === 'continue-listening';
       const h = r.querySelector('h2');
       const txt = h ? h.textContent.trim().toLowerCase() : '';
@@ -1217,13 +1333,13 @@
     });
     if (!row || row.dataset.heroInjected === 'true') return;
 
-    let cards = Array.from(row.querySelectorAll('[cy-id="card"], [id^="book-card-"]'));
+    let cards = nhCardsIn(row);
     if (!cards.length) return;
 
     // Combine mode: fold Continue Reading items into the carousel and hide that shelf.
     let crCombined = null;
     if (nhSettings.continueReadingMode === 'combine' && crRow && crRow.dataset.heroInjected !== 'true') {
-      const crCards = Array.from(crRow.querySelectorAll('[cy-id="card"], [id^="book-card-"]'));
+      const crCards = nhCardsIn(crRow);
       if (crCards.length) {
         cards = cards.concat(crCards);
         crCombined = crRow;
@@ -1608,7 +1724,8 @@
   }
 
   function findNativeRecentSeriesRow() {
-    return Array.from(document.querySelectorAll('.bookshelf-row')).find(r => {
+    return nhShelfRows().find(r => {
+      if (nhShelfId(r) === 'recent-series') return true;
       const h2 = r.querySelector('h2'); if (!h2) return false;
       const t = h2.textContent.trim().toLowerCase();
       return t.includes('recent series') || t.includes('ostatnie serie') || t.includes('najnowsze serie');
@@ -1741,7 +1858,7 @@
           nativeRow.parentNode.insertBefore(existing, nativeRow);
         }
         try {
-          const sib = nativeRow || document.querySelector('.bookshelf-row:not(#nh-recent-series-row)');
+          const sib = nativeRow || nhShelfRows().find(r => r.id !== 'nh-recent-series-row');
           if (sib) { const cs = getComputedStyle(sib); existing.style.paddingLeft = cs.paddingLeft; existing.style.paddingRight = cs.paddingRight; }
         } catch (e) {}
         return;
@@ -1759,7 +1876,7 @@
       else { const bs = document.getElementById('bookshelf'); if (bs) bs.appendChild(row); else return; }
 
       try {
-        const sib = nativeRow || document.querySelector('.bookshelf-row:not(#nh-recent-series-row)');
+        const sib = nativeRow || nhShelfRows().find(r => r.id !== 'nh-recent-series-row');
         if (sib) { const cs = getComputedStyle(sib); row.style.paddingLeft = cs.paddingLeft; row.style.paddingRight = cs.paddingRight; }
       } catch (e) {}
 
@@ -2220,8 +2337,62 @@
     nhEreaderModal();
   }
 
+  // Version footer at the bottom of the library sidebar rail (and mobile drawer).
+  // ABS 2.35+ moved its version link into a hidden changelog modal, so users lost the
+  // at-a-glance "what am I running" readout. Restore it and add the theme version.
+  // Bump NH_THEME_VERSION on each release (the composite THEME_VERSION from NH_CONFIG is
+  // shown on hover for exact per-file versions).
+  const NH_THEME_VERSION = 'v1.6.0';
+  function nhAbsVersion() {
+    try {
+      const v = window.$nuxt && window.$nuxt.$store && window.$nuxt.$store.state.serverSettings && window.$nuxt.$store.state.serverSettings.version;
+      if (v) return String(v).replace(/^v?/, 'v');
+    } catch (e) {}
+    const a = document.querySelector('a[href*="/releases/tag/v"]');
+    if (a) { const m = a.textContent.trim().match(/\d+\.\d+\.\d+/); if (m) return 'v' + m[0]; }
+    return '';
+  }
+  function nhVersionFooterMarkup(f) {
+    const abs = nhAbsVersion();
+    const composite = (window.NH_CONFIG && window.NH_CONFIG.themeVersion) || '';
+    f.title = composite ? 'NanoHive theme build: ' + composite : '';
+    if (f.dataset.v === abs) return;
+    f.dataset.v = abs;
+    f.innerHTML = `<div style="opacity:.85;">Audiobookshelf${abs ? ' ' + abs : ''}</div>` +
+                  `<div style="margin-top:2px;color:var(--nh-amber);opacity:.8;">NanoHive ${NH_THEME_VERSION}</div>`;
+  }
+  function nhVersionFooter() {
+    // Desktop rail: append inside it and pin to the viewport's bottom-left. Because it
+    // lives inside the rail (display:none on mobile via `hidden md:block`), it auto-hides
+    // on mobile — where we instead drop a copy into the slide-out drawer (below).
+    const rail = document.querySelector('[aria-label="Library Sidebar"]');
+    if (rail) {
+      let f = rail.querySelector('#nh-version-footer');
+      if (!f) {
+        f = document.createElement('div');
+        f.id = 'nh-version-footer';
+        f.style.cssText = 'position:fixed;bottom:0;left:0;width:80px;box-sizing:border-box;padding:10px 4px;text-align:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:0.6rem;line-height:1.35;color:var(--nh-muted-2);pointer-events:none;z-index:50;';
+        rail.appendChild(f);
+      }
+      nhVersionFooterMarkup(f);
+    }
+    // Mobile drawer (#nh-mobile-drawer is a flex column) — pin a footer to its bottom.
+    const drawer = document.getElementById('nh-mobile-drawer');
+    if (drawer) {
+      let df = drawer.querySelector('#nh-version-footer-mobile');
+      if (!df) {
+        df = document.createElement('div');
+        df.id = 'nh-version-footer-mobile';
+        df.style.cssText = 'margin-top:auto;padding:16px 8px 6px;text-align:center;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:0.7rem;line-height:1.4;color:var(--nh-muted-2);';
+        drawer.appendChild(df);
+      }
+      nhVersionFooterMarkup(df);
+    }
+  }
+
   function runMutations() {
     const safe = (fn) => { try { fn(); } catch (e) { /* one failure must not block the rest */ } };
+    safe(nhVersionFooter);
     safe(nhSeriesScale);
     safe(nhCoverModeClass);
     safe(nhSeriesHeader);

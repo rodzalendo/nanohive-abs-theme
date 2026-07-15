@@ -1,4 +1,4 @@
-/* NanoHive ABS — Book Details Redesign  v1.20.0  (injected build) */
+/* NanoHive ABS — Book Details Redesign  v1.22.0  (injected build) */
 
 (function () {
   'use strict';
@@ -94,12 +94,32 @@
         width: 100% !important;
     }
 
-    /* Hide native overlays on cover */
+    /* Hide native cover overlays: the progress bar (BOTH in-progress bg-yellow-400 AND
+       finished bg-success — ABS hardcodes its width to 208px, so it renders as a broken
+       half-width stub on the resized detail cover) + the hover/edit overlay. The bar stays
+       in the DOM (display:none) so the JS finished-badge can still read its bg-success state. */
     #item-page-wrapper > div.flex > div:first-child .bg-yellow-400.absolute.bottom-0,
+    #item-page-wrapper > div.flex > div:first-child .bg-success.absolute.bottom-0,
     #item-page-wrapper > div.flex > div:first-child .group-hover\\:opacity-100 {
         display: none !important;
         opacity: 0 !important;
         visibility: hidden !important;
+    }
+
+    /* Finished indicator: frosted circular checkmark, top-right of the cover, in the accent
+       colour. Injected by JS (section 4) when the (hidden) native bar carries bg-success. */
+    #nh-finished-badge {
+        position: absolute !important; top: 14px !important; right: 14px !important; z-index: 20 !important;
+        width: 44px !important; height: 44px !important; border-radius: 50% !important;
+        display: flex !important; align-items: center !important; justify-content: center !important;
+        background: rgba(20, 17, 13, 0.35) !important;
+        backdrop-filter: blur(12px) saturate(1.3) !important; -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important; pointer-events: none !important;
+    }
+    #nh-finished-badge .material-symbols {
+        font-size: 26px !important; line-height: 1 !important; color: var(--nh-amber, #e8a23e) !important;
+        font-variation-settings: 'wght' 700 !important; text-shadow: 0 0 10px var(--nh-amber-shadow, rgba(232,162,62,0.45)) !important;
     }
 
     /* Metadata Container */
@@ -282,7 +302,7 @@
         font-family: system-ui, sans-serif !important;
     }
 
-    #item-page-wrapper .tracksTable {
+    :is(#item-page-wrapper, .modal) .tracksTable {
         /* Sit the table in its own softly-recessed rounded panel so it reads as part
            of the theme instead of floating loose against the page. border-collapse
            must be separate for border-radius + overflow clipping to take effect. */
@@ -296,15 +316,15 @@
         margin-top: 16px !important;
     }
 
-    #item-page-wrapper .tracksTable tr,
-    #item-page-wrapper .tracksTable thead,
-    #item-page-wrapper .tracksTable tbody,
-    #item-page-wrapper .tracksTable tr:nth-child(even),
-    #item-page-wrapper .tracksTable tr:nth-child(odd) {
+    :is(#item-page-wrapper, .modal) .tracksTable tr,
+    :is(#item-page-wrapper, .modal) .tracksTable thead,
+    :is(#item-page-wrapper, .modal) .tracksTable tbody,
+    :is(#item-page-wrapper, .modal) .tracksTable tr:nth-child(even),
+    :is(#item-page-wrapper, .modal) .tracksTable tr:nth-child(odd) {
         background-color: transparent !important;
     }
 
-    #item-page-wrapper .tracksTable th {
+    :is(#item-page-wrapper, .modal) .tracksTable th {
         text-transform: uppercase !important;
         font-size: 0.75rem !important;
         letter-spacing: 0.1em !important;
@@ -315,7 +335,7 @@
         background-color: transparent !important;
         font-weight: 600 !important;
     }
-    #item-page-wrapper .tracksTable td {
+    :is(#item-page-wrapper, .modal) .tracksTable td {
         padding: 16px 12px !important;
         border-bottom: 1px solid rgba(255,255,255,0.03) !important;
         color: #d8cfc2 !important;
@@ -323,18 +343,18 @@
         font-size: 0.95rem !important;
     }
     /* No separator under the last row — it would cut across the panel's rounded base. */
-    #item-page-wrapper .tracksTable tr:last-child td {
+    :is(#item-page-wrapper, .modal) .tracksTable tr:last-child td {
         border-bottom: none !important;
     }
-    #item-page-wrapper .tracksTable tr:hover td {
+    :is(#item-page-wrapper, .modal) .tracksTable tr:hover td {
         background-color: rgba(255,255,255,0.04) !important;
     }
-    #item-page-wrapper .tracksTable .font-mono {
+    :is(#item-page-wrapper, .modal) .tracksTable .font-mono {
         font-family: ui-monospace, "SFMono-Regular", Menlo, monospace !important;
         font-size: 0.9rem !important;
         color: #9a9085 !important;
     }
-    #item-page-wrapper .tracksTable button {
+    :is(#item-page-wrapper, .modal) .tracksTable button {
         background-color: rgba(255,255,255,0.05) !important;
         border: none !important;
         border-radius: 8px !important;
@@ -374,8 +394,8 @@
         /* Chapters / Audio Tracks / Library Files section headers + pills */
         #item-page-wrapper .w-full.my-2.mt-6 > div.bg-primary p { font-size: 1.05rem !important; }
         #item-page-wrapper .w-full.my-2.mt-6 > div.bg-primary .bg-black-400 { font-size: 0.78rem !important; padding: 3px 9px !important; }
-        #item-page-wrapper .tracksTable th { font-size: 0.65rem !important; padding: 10px 8px !important; }
-        #item-page-wrapper .tracksTable td { font-size: 0.82rem !important; padding: 10px 8px !important; }
+        :is(#item-page-wrapper, .modal) .tracksTable th { font-size: 0.65rem !important; padding: 10px 8px !important; }
+        :is(#item-page-wrapper, .modal) .tracksTable td { font-size: 0.82rem !important; padding: 10px 8px !important; }
         #item-page-wrapper button, #item-page-wrapper a { white-space: nowrap; }
     }
   `;
@@ -620,6 +640,29 @@
           btn.style.alignItems = 'center';
           btn.style.justifyContent = 'center';
       });
+
+      // 4. Finished badge on the item-page cover — a frosted accent checkmark, top-right,
+      //    replacing the hidden native progress-bar stub. The bar stays in the DOM, so its
+      //    bg-success class still tells us the finished state. Resilient: prefer [cy-id],
+      //    fall back to the positional bottom-left bar sitting in the cover's .group wrapper.
+      const coverBar = document.querySelector('#item-page-wrapper [cy-id="progressBar"]')
+          || Array.from(document.querySelectorAll('#item-page-wrapper .absolute.bottom-0.left-0'))
+               .find(el => /bg-success|bg-yellow/.test(el.className) && el.closest('.group'));
+      const coverWrap = coverBar && (coverBar.closest('.group') || coverBar.parentElement);
+      if (coverWrap) {
+          const finished = coverBar.classList.contains('bg-success');
+          let badge = document.getElementById('nh-finished-badge');
+          if (finished && !badge) {
+              if (getComputedStyle(coverWrap).position === 'static') coverWrap.style.position = 'relative';
+              badge = document.createElement('div');
+              badge.id = 'nh-finished-badge';
+              badge.setAttribute('aria-label', 'Finished');
+              badge.innerHTML = '<span class="material-symbols">check</span>';
+              coverWrap.appendChild(badge);
+          } else if (!finished && badge) {
+              badge.remove();
+          }
+      }
   }
 
   // Poll for Vue SPA navigation changes
