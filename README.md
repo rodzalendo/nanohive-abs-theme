@@ -24,6 +24,8 @@ through the proxy, they just won't be themed.
 - A real mobile layout: drawer navigation, touch-friendly appbar, no horizontal overflow
 - An in-app settings panel (gear icon) where **each user** picks their own theme, font,
   accent, and which shelves and sidebar entries to show
+- A custom logo you can **upload from the settings panel** and have the server host itself,
+  so it still loads when your server has no internet access
 - **Server-wide defaults saved from the UI** (admins): one click stores your current look
   as the default for every user — no compose editing, survives updates via a small volume
 - An expanded "Recent Series" shelf (ABS's native one is capped at 5 items), with an
@@ -65,7 +67,7 @@ vars** beat the built-in defaults.
 | `ABS_UPSTREAM` | *(required)* | Where ABS actually listens, e.g. `http://audiobookshelf:80` |
 | `NH_APP_NAME` | *(empty)* | Replaces "audiobookshelf" in the appbar. No `"` or `\` |
 | `NH_SHOW_LOGO_TEXT` | `true` | Show the app name beside the logo. `true`/`false` only |
-| `NH_LOGO_URL` | *(empty)* | Custom logo image URL. No `"` or `\` |
+| `NH_LOGO_URL` | *(empty)* | Custom logo. An external URL, or `/_nh/logo.<ext>` for a logo hosted by the server itself (works offline — see below). No `"` or `\` |
 | `NH_COLORIZE_LOGO` | `false` | Tint the logo with the accent colour. `true`/`false` only |
 | `NH_ACCENT_COLOR` | `#e0c27a` | Any hex colour |
 | `NH_BASE_THEME` | `warm` | `warm` `slate` `black` `navy` `mocha` `pine` `plum` `crimson` `ocean` `sand` `steel` `wine` |
@@ -91,6 +93,20 @@ against an admin-only ABS endpoint before accepting the request.
 
 The file lives at `/data/nh/server-config.json` inside the container — **mount a volume
 there** (see the run command above) or it resets when the container is recreated.
+
+### Custom logo (incl. offline / air-gapped)
+
+You can point `NH_LOGO_URL` (or the **Custom Logo** field in the settings panel) at an
+external image URL. For a server with **no internet access**, host the logo on the proxy
+itself instead:
+
+- **Easiest:** in Settings → Theme → *Branding & Style*, click **"Upload from device…"**
+  (admins only), pick an image, and it's uploaded and applied in one click.
+- **Manual:** drop an image into the `/data/nh` volume as `logo.png` (or `.svg`, `.jpg`,
+  `.webp`, …) and set the logo to `/_nh/logo.png`.
+
+Either way the logo is served same-origin from the volume, so it loads with no outbound
+request. It persists across updates as long as the `/data/nh` volume is mounted.
 
 ### Where settings live
 
