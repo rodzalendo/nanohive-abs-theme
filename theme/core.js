@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.29.3  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.29.4  (injected build) */
 
 (function () {
   'use strict';
@@ -524,7 +524,7 @@ button[role="checkbox"] { border-color: var(--nh-hairline) !important; }
    the scroll flow, so it's only ever seen once you scroll to the very bottom. Home/library
    scrolls on #bookshelf, item pages on #item-page-wrapper. Only while the player is open. */
 body:has(#mediaPlayerContainer) #bookshelf,
-body:has(#mediaPlayerContainer) #item-page-wrapper { padding-bottom: 140px !important; }
+body:has(#mediaPlayerContainer) #item-page-wrapper { padding-bottom: 190px !important; }
 
 /* FLOATING FROSTED PLAYER (Matches Appbar) */
 #mediaPlayerContainer { pointer-events: auto !important; position: fixed !important; left: 0 !important; right: 0 !important; margin-left: auto !important; margin-right: auto !important; width: min(94%, 1080px) !important; bottom: 24px !important; height: auto !important; padding-bottom: 12px !important; padding-top: 8px !important; z-index: 50 !important; background-color: rgba(var(--nh-bg-rgb), 0.4) !important; backdrop-filter: blur(28px) saturate(150%) !important; -webkit-backdrop-filter: blur(28px) saturate(150%) !important; border-radius: 20px !important; border: 1px solid var(--nh-hairline-lit) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.60) !important; }
