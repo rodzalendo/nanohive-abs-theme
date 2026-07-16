@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.29.2  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.29.3  (injected build) */
 
 (function () {
   'use strict';
@@ -515,11 +515,16 @@ button[role="checkbox"] { border-color: var(--nh-hairline) !important; }
 #app-content table tr { background: transparent !important; }
 #app-content table tr:hover td { background: rgba(255,255,255,0.04) !important; }
 
-/* The player floats (position:fixed, bottom:24px, ~110px tall). Stock ABS reserves
-   bottom room here; we zeroed it when the player was made to float, which let the last
-   content scroll under the floating player where it can't be revealed. Restore clearance
-   (24px offset + player height + gap) so the page can scroll fully clear of it. */
-.page.streaming, #app-content .page.streaming, #ab-page-wrapper.streaming { height: 100% !important; max-height: none !important; padding-bottom: 160px !important; box-sizing: border-box !important; }
+.page.streaming, #app-content .page.streaming, #ab-page-wrapper.streaming { height: 100% !important; max-height: none !important; padding-bottom: 0px !important; box-sizing: border-box !important; }
+
+/* Bottom clearance so the LAST item can scroll clear of the floating player (fixed,
+   bottom:24px, ~110px tall). It MUST go on the real scroll containers — never on the
+   .page wrapper: .page is overflow-hidden + h-full, so padding there only shrinks the
+   inner scroller and leaves a permanent empty "lip". As scroller padding it lives inside
+   the scroll flow, so it's only ever seen once you scroll to the very bottom. Home/library
+   scrolls on #bookshelf, item pages on #item-page-wrapper. Only while the player is open. */
+body:has(#mediaPlayerContainer) #bookshelf,
+body:has(#mediaPlayerContainer) #item-page-wrapper { padding-bottom: 140px !important; }
 
 /* FLOATING FROSTED PLAYER (Matches Appbar) */
 #mediaPlayerContainer { pointer-events: auto !important; position: fixed !important; left: 0 !important; right: 0 !important; margin-left: auto !important; margin-right: auto !important; width: min(94%, 1080px) !important; bottom: 24px !important; height: auto !important; padding-bottom: 12px !important; padding-top: 8px !important; z-index: 50 !important; background-color: rgba(var(--nh-bg-rgb), 0.4) !important; backdrop-filter: blur(28px) saturate(150%) !important; -webkit-backdrop-filter: blur(28px) saturate(150%) !important; border-radius: 20px !important; border: 1px solid var(--nh-hairline-lit) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.60) !important; }
