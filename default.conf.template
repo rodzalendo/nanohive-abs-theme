@@ -3,6 +3,17 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
+# Preserve the client's original protocol when this container sits behind another
+# reverse proxy (outer nginx / NPM / Traefik terminating TLS). $scheme here is how
+# THIS container was reached — usually plain http — which would stomp the outer
+# proxy's "X-Forwarded-Proto: https" and make ABS reject OIDC callback URLs as
+# cross-origin (https callback vs http expected origin). Pass the incoming header
+# through untouched; fall back to $scheme only when we are the edge proxy.
+map $http_x_forwarded_proto $nh_fwd_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
 server {
     listen 80;
     server_name _;
@@ -72,7 +83,7 @@ server {
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $nh_fwd_proto;
 
         # WebSocket (ABS Socket.IO progress sync)
         proxy_set_header Upgrade    $http_upgrade;

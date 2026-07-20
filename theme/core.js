@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.29.4  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.29.5  (injected build) */
 
 (function () {
   'use strict';
@@ -489,20 +489,36 @@ input.nh-er-color { width: 36px; height: 26px; border: 1px solid rgba(255,255,25
 .modal .max-h-80.overflow-y-auto { max-height: 60vh !important; }
 /* Description rich-text editor (Trix). ABS ships it neutral-gray (rgb(35,35,35)) which
    clashes with the warm theme — recolour the editor surface and its toolbar. Use
-   background-COLOR (not the shorthand) on buttons so their icon background-image survives. */
-.modal trix-editor, .modal .trix-content {
+   background-COLOR (not the shorthand) on buttons so their icon background-image survives.
+   NOT scoped to .modal: ABS lazy-loads Trix's stylesheet with the edit-modal chunk, and the
+   .modal ancestor never matched, so this whole block was dead CSS. Trix only ever renders in
+   that modal, so plain element selectors are both sufficient and reliable.
+   (Never use backticks in these comments - this whole sheet is one template literal.) */
+trix-editor, .trix-content {
     min-height: 240px !important;
     background-color: rgba(0,0,0,0.2) !important;
     color: var(--nh-text-2) !important;
     border: 1px solid var(--nh-hairline-lit) !important;
     border-radius: 12px !important;
 }
-.modal trix-toolbar { background-color: transparent !important; }
-.modal trix-toolbar .trix-button-group { background-color: transparent !important; border: 1px solid var(--nh-hairline) !important; border-radius: 10px !important; overflow: hidden; }
-.modal trix-toolbar .trix-button { background-color: transparent !important; border-bottom: none !important; }
-.modal trix-toolbar .trix-button:not(:first-child) { border-left: 1px solid var(--nh-hairline) !important; }
-.modal trix-toolbar .trix-button:hover { background-color: var(--nh-amber-tint) !important; }
-.modal trix-toolbar .trix-button.trix-active { background-color: var(--nh-amber-tint) !important; }
+trix-toolbar { background-color: transparent !important; }
+trix-toolbar .trix-button-group { background-color: transparent !important; border: 1px solid var(--nh-hairline) !important; border-radius: 10px !important; overflow: hidden; }
+trix-toolbar .trix-button { background-color: transparent !important; border-bottom: none !important; color: var(--nh-text-2) !important; }
+trix-toolbar .trix-button:not(:first-child) { border-left: 1px solid var(--nh-hairline) !important; }
+trix-toolbar .trix-button:hover { background-color: var(--nh-amber-tint) !important; }
+trix-toolbar .trix-button.trix-active { background-color: var(--nh-amber-tint) !important; }
+/* Trix 1.3.1 paints each glyph as a black SVG data-URI on the button's ::before at opacity .6,
+   which on the dark surface is near-invisible. Filter the ::before rather than the button so
+   the glyph brightens without inverting the amber hover/active background behind it. */
+trix-toolbar .trix-button::before {
+    opacity: 1 !important;
+    filter: invert(1) sepia(0.25) !important;
+}
+trix-toolbar .trix-button:hover::before,
+trix-toolbar .trix-button.trix-active::before {
+    filter: invert(1) sepia(0.6) saturate(2.2) brightness(1.05) !important;
+}
+trix-toolbar .trix-button:disabled::before { opacity: 0.3 !important; }
 
 .configContent .bg-bg.rounded-md { background-color: var(--nh-raised) !important; border: 1px solid var(--nh-hairline) !important; border-radius: 16px !important; box-shadow: 0 8px 24px rgba(0,0,0,0.30) !important; }
 .configContent h1 { font-size: 1.6rem !important; }
