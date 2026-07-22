@@ -54,6 +54,42 @@ directly. See `docker-compose.example.yml` for a compose setup.
 Already serving ABS on the port your users know? Move ABS to another port and publish the
 theme container on the old one, so existing bookmarks keep working.
 
+Sitting the theme behind your own TLS-terminating reverse proxy (nginx, NPM, Traefik,
+Cloudflare tunnel) is fully supported, including OIDC login — the proxy forwards the
+incoming `X-Forwarded-Proto` untouched (requires v1.8.0+).
+
+### TrueNAS SCALE
+
+Keep the Audiobookshelf app exactly as it is and add the theme as a second app beside it.
+On SCALE 24.10 ("Electric Eel") or later: **Apps → Discover → Custom App → Install via
+YAML** and paste:
+
+```yaml
+services:
+  abs-theme:
+    image: ghcr.io/rodzalendo/nanohive-abs-theme:latest
+    restart: unless-stopped
+    ports:
+      - "30081:80"          # any free port; open http://<truenas-ip>:30081
+    environment:
+      ABS_UPSTREAM: "http://<truenas-ip>:30013"   # your ABS app's web port
+    volumes:
+      - /mnt/tank/apps/nanohive:/data/nh          # any dataset path; persists server defaults + uploaded logo
+```
+
+On older (k3s-based) SCALE releases, use the **Custom App** form instead and fill in the
+same three things: the image, the `ABS_UPSTREAM` env var, the port mapping, plus host-path
+storage for `/data/nh`.
+
+TrueNAS-specific notes:
+
+- `ABS_UPSTREAM` must be the **TrueNAS host IP plus the ABS app's published port** — not
+  `localhost` (that is the theme container itself) and not the ABS container name (catalog
+  apps live on auto-generated `ix-…` networks the custom app cannot see).
+- The theme writes nothing to ABS. Deleting the theme app returns everything to stock.
+- If a reverse proxy fronts your NAS, point it at the theme's port instead of ABS's.
+- The ABS mobile apps can keep using the raw ABS port; the theme only affects browsers.
+
 ## Configuration
 
 Only `ABS_UPSTREAM` is required. The `NH_*` variables set the **defaults a user sees on
