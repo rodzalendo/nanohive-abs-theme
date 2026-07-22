@@ -1,4 +1,4 @@
-/* NanoHive ABS — JS Enhancements  v6.64.4  (injected build) */
+/* NanoHive ABS — JS Enhancements  v6.65.3  (injected build) */
 
 (function () {
   'use strict';
@@ -49,7 +49,8 @@
     recentSeriesCount: 12,
     customSeriesCards: true,
     showHeroCarousel: true,
-    continueReadingMode: 'combine'
+    continueReadingMode: 'combine',
+    showRatings: true
   };
 
   const serverSettings = (window.NH_CONFIG && typeof window.NH_CONFIG === 'object') ? window.NH_CONFIG : {};
@@ -312,8 +313,8 @@
   }
 
   const PANEL_T = {
-    en: {"title": "Theme Customizations", "subtitle": "Personalise the look of your library. Changes save automatically.", "branding": "Branding & Style", "colour": "Colour & Theme", "homeCar": "Home & Carousel", "sidebar": "Sidebar Menus", "appName": "App Name", "appNameHint": "Leave empty for the default name.", "logoUrl": "Custom Logo URL", "logoHint": "Leave empty for the default logo.", "accent": "Accent Colour", "baseTheme": "Base Theme", "mainFont": "Main Font", "carousel": "Carousel Auto-Advance", "carouselHint": "Seconds between slides. Set to 0 to disable.", "customSeries": "Expanded Recent Series", "seriesCount": "Recent Series Count", "seriesCountHint": "How many series to show in the expanded shelf.", "hideShelves": "Hide Homepage Shelves", "sidebarHint": "Hide left-rail entries you don't use.", "showAppName": "Show App Name Text", "colorizeLogo": "Colorize Logo with Accent Colour", "hideSeries": "Hide Series", "hideCollections": "Hide Collections", "hideAuthors": "Hide Authors", "hideNarrators": "Hide Narrators", "hideStats": "Hide Stats", "hideRecentlyAdded": "Hide Recently Added", "hideRecentSeries": "Hide Recent Series", "hideContinueSeries": "Hide Continue Series", "hideListenAgain": "Hide Listen Again", "hideDiscover": "Hide Discover", "hideNewestAuthors": "Hide Newest Authors", "seriesCards": "Stacked Series Covers", "heroCarousel": "Home Carousel", "gearLabel": "Theme", "srvTitle": "Server Defaults", "srvHint": "Save your current settings as the defaults for every user of this server. Users can still personalise their own look on top. Mount a volume at /data/nh in the theme container to keep these across updates.", "srvSave": "Save as server defaults", "srvClear": "Clear server defaults", "srvSaved": "Saved", "srvCleared": "Cleared", "srvErr": "Failed — admin login required", "crMode": "Continue Reading Shelf", "crCombine": "Combine into carousel", "crSeparate": "Keep as separate shelf", "crHide": "Hidden", "logoUpload": "Upload from device…", "logoUploaded": "Uploaded ✓", "logoBadType": "Unsupported image type", "logoTooBig": "Image too large (max 4 MB)", "logoOr": "or"},
-    pl: {"title": "Personalizacja motywu", "subtitle": "Dostosuj wygląd swojej biblioteki. Zmiany zapisują się automatycznie.", "branding": "Marka i styl", "colour": "Kolor i motyw", "homeCar": "Strona główna i karuzela", "sidebar": "Menu boczne", "appName": "Nazwa aplikacji", "appNameHint": "Pozostaw puste, aby użyć domyślnej nazwy.", "logoUrl": "Adres URL własnego logo", "logoHint": "Pozostaw puste, aby użyć domyślnego logo.", "accent": "Kolor akcentu", "baseTheme": "Motyw bazowy", "mainFont": "Czcionka główna", "carousel": "Automatyczne przewijanie karuzeli", "carouselHint": "Sekundy między slajdami. Ustaw 0, aby wyłączyć.", "customSeries": "Rozszerzone ostatnie serie", "seriesCount": "Liczba ostatnich serii", "seriesCountHint": "Ile serii pokazać na rozszerzonej półce.", "hideShelves": "Ukryj półki strony głównej", "sidebarHint": "Ukryj nieużywane pozycje menu bocznego.", "showAppName": "Pokaż nazwę aplikacji", "colorizeLogo": "Pokoloruj logo kolorem akcentu", "hideSeries": "Ukryj Serie", "hideCollections": "Ukryj Kolekcje", "hideAuthors": "Ukryj Autorów", "hideNarrators": "Ukryj Lektorów", "hideStats": "Ukryj Statystyki", "hideRecentlyAdded": "Ukryj Ostatnio dodane", "hideRecentSeries": "Ukryj Ostatnie serie", "hideContinueSeries": "Ukryj Kontynuuj serię", "hideListenAgain": "Ukryj Słuchaj ponownie", "hideDiscover": "Ukryj Odkrywaj", "hideNewestAuthors": "Ukryj Najnowszych autorów", "seriesCards": "Nakładane okładki serii", "heroCarousel": "Karuzela na stronie głównej", "gearLabel": "Motyw", "srvTitle": "Domyślne ustawienia serwera", "srvHint": "Zapisz bieżące ustawienia jako domyślne dla wszystkich użytkowników tego serwera. Użytkownicy nadal mogą personalizować swój wygląd. Zamontuj wolumin w /data/nh w kontenerze motywu, aby zachować je między aktualizacjami.", "srvSave": "Zapisz jako domyślne serwera", "srvClear": "Wyczyść domyślne serwera", "srvSaved": "Zapisano", "srvCleared": "Wyczyszczono", "srvErr": "Błąd — wymagane konto administratora", "crMode": "Półka Kontynuuj czytanie", "crCombine": "Połącz z karuzelą", "crSeparate": "Osobna półka", "crHide": "Ukryta", "logoUpload": "Wgraj z urządzenia…", "logoUploaded": "Wgrano ✓", "logoBadType": "Nieobsługiwany typ obrazu", "logoTooBig": "Obraz za duży (maks. 4 MB)", "logoOr": "lub"},
+    en: {"title": "Theme Customizations", "subtitle": "Personalise the look of your library. Changes save automatically.", "branding": "Branding & Style", "colour": "Colour & Theme", "homeCar": "Home & Carousel", "sidebar": "Sidebar Menus", "appName": "App Name", "appNameHint": "Leave empty for the default name.", "logoUrl": "Custom Logo URL", "logoHint": "Leave empty for the default logo.", "accent": "Accent Colour", "baseTheme": "Base Theme", "mainFont": "Main Font", "carousel": "Carousel Auto-Advance", "carouselHint": "Seconds between slides. Set to 0 to disable.", "customSeries": "Expanded Recent Series", "seriesCount": "Recent Series Count", "seriesCountHint": "How many series to show in the expanded shelf.", "hideShelves": "Hide Homepage Shelves", "sidebarHint": "Hide left-rail entries you don't use.", "showAppName": "Show App Name Text", "colorizeLogo": "Colorize Logo with Accent Colour", "hideSeries": "Hide Series", "hideCollections": "Hide Collections", "hideAuthors": "Hide Authors", "hideNarrators": "Hide Narrators", "hideStats": "Hide Stats", "hideRecentlyAdded": "Hide Recently Added", "hideRecentSeries": "Hide Recent Series", "hideContinueSeries": "Hide Continue Series", "hideListenAgain": "Hide Listen Again", "hideDiscover": "Hide Discover", "hideNewestAuthors": "Hide Newest Authors", "seriesCards": "Stacked Series Covers", "heroCarousel": "Home Carousel", "gearLabel": "Theme", "srvTitle": "Server Defaults", "srvHint": "Save your current settings as the defaults for every user of this server. Users can still personalise their own look on top. Mount a volume at /data/nh in the theme container to keep these across updates.", "srvSave": "Save as server defaults", "srvClear": "Clear server defaults", "srvSaved": "Saved", "srvCleared": "Cleared", "srvErr": "Failed — admin login required", "crMode": "Continue Reading Shelf", "crCombine": "Combine into carousel", "crSeparate": "Keep as separate shelf", "crHide": "Hidden", "logoUpload": "Upload from device…", "logoUploaded": "Uploaded ✓", "logoBadType": "Unsupported image type", "logoTooBig": "Image too large (max 4 MB)", "logoOr": "or", "bookPage": "Book Page", "ratingsToggle": "Community ratings (stars & reviews)", "ratingsHint": "Star ratings with short reviews on each book page, shared with every user of this server."},
+    pl: {"title": "Personalizacja motywu", "subtitle": "Dostosuj wygląd swojej biblioteki. Zmiany zapisują się automatycznie.", "branding": "Marka i styl", "colour": "Kolor i motyw", "homeCar": "Strona główna i karuzela", "sidebar": "Menu boczne", "appName": "Nazwa aplikacji", "appNameHint": "Pozostaw puste, aby użyć domyślnej nazwy.", "logoUrl": "Adres URL własnego logo", "logoHint": "Pozostaw puste, aby użyć domyślnego logo.", "accent": "Kolor akcentu", "baseTheme": "Motyw bazowy", "mainFont": "Czcionka główna", "carousel": "Automatyczne przewijanie karuzeli", "carouselHint": "Sekundy między slajdami. Ustaw 0, aby wyłączyć.", "customSeries": "Rozszerzone ostatnie serie", "seriesCount": "Liczba ostatnich serii", "seriesCountHint": "Ile serii pokazać na rozszerzonej półce.", "hideShelves": "Ukryj półki strony głównej", "sidebarHint": "Ukryj nieużywane pozycje menu bocznego.", "showAppName": "Pokaż nazwę aplikacji", "colorizeLogo": "Pokoloruj logo kolorem akcentu", "hideSeries": "Ukryj Serie", "hideCollections": "Ukryj Kolekcje", "hideAuthors": "Ukryj Autorów", "hideNarrators": "Ukryj Lektorów", "hideStats": "Ukryj Statystyki", "hideRecentlyAdded": "Ukryj Ostatnio dodane", "hideRecentSeries": "Ukryj Ostatnie serie", "hideContinueSeries": "Ukryj Kontynuuj serię", "hideListenAgain": "Ukryj Słuchaj ponownie", "hideDiscover": "Ukryj Odkrywaj", "hideNewestAuthors": "Ukryj Najnowszych autorów", "seriesCards": "Nakładane okładki serii", "heroCarousel": "Karuzela na stronie głównej", "gearLabel": "Motyw", "srvTitle": "Domyślne ustawienia serwera", "srvHint": "Zapisz bieżące ustawienia jako domyślne dla wszystkich użytkowników tego serwera. Użytkownicy nadal mogą personalizować swój wygląd. Zamontuj wolumin w /data/nh w kontenerze motywu, aby zachować je między aktualizacjami.", "srvSave": "Zapisz jako domyślne serwera", "srvClear": "Wyczyść domyślne serwera", "srvSaved": "Zapisano", "srvCleared": "Wyczyszczono", "srvErr": "Błąd — wymagane konto administratora", "crMode": "Półka Kontynuuj czytanie", "crCombine": "Połącz z karuzelą", "crSeparate": "Osobna półka", "crHide": "Ukryta", "logoUpload": "Wgraj z urządzenia…", "logoUploaded": "Wgrano ✓", "logoBadType": "Nieobsługiwany typ obrazu", "logoTooBig": "Obraz za duży (maks. 4 MB)", "logoOr": "lub", "bookPage": "Strona książki", "ratingsToggle": "Oceny społeczności (gwiazdki i recenzje)", "ratingsHint": "Oceny z krótkimi recenzjami na stronie książki, wspólne dla wszystkich użytkowników tego serwera."},
     de: {"title": "Design-Anpassungen", "subtitle": "Personalisiere das Aussehen deiner Bibliothek. Änderungen werden automatisch gespeichert.", "branding": "Branding & Stil", "colour": "Farbe & Design", "homeCar": "Startseite & Karussell", "sidebar": "Seitenmenüs", "appName": "App-Name", "appNameHint": "Leer lassen für den Standardnamen.", "logoUrl": "Eigene Logo-URL", "logoHint": "Leer lassen für das Standardlogo.", "accent": "Akzentfarbe", "baseTheme": "Basis-Design", "mainFont": "Hauptschriftart", "carousel": "Karussell-Autowechsel", "carouselHint": "Sekunden zwischen Folien. 0 zum Deaktivieren.", "customSeries": "Erweiterte neueste Serien", "seriesCount": "Anzahl neuester Serien", "seriesCountHint": "Wie viele Serien im erweiterten Regal gezeigt werden.", "hideShelves": "Startseiten-Regale ausblenden", "sidebarHint": "Nicht genutzte Menüeinträge ausblenden.", "showAppName": "App-Namen anzeigen", "colorizeLogo": "Logo mit Akzentfarbe einfärben", "hideSeries": "Serien ausblenden", "hideCollections": "Sammlungen ausblenden", "hideAuthors": "Autoren ausblenden", "hideNarrators": "Sprecher ausblenden", "hideStats": "Statistiken ausblenden", "hideRecentlyAdded": "Kürzlich hinzugefügt ausblenden", "hideRecentSeries": "Neueste Serien ausblenden", "hideContinueSeries": "Serie fortsetzen ausblenden", "hideListenAgain": "Erneut anhören ausblenden", "hideDiscover": "Entdecken ausblenden", "hideNewestAuthors": "Neueste Autoren ausblenden", "seriesCards": "Gestapelte Serien-Cover", "heroCarousel": "Startseiten-Karussell", "gearLabel": "Design", "srvTitle": "Server-Standardwerte", "srvHint": "Speichere deine aktuellen Einstellungen als Standard für alle Nutzer dieses Servers. Nutzer können ihren Look weiterhin selbst anpassen. Binde ein Volume unter /data/nh im Theme-Container ein, um sie über Updates hinweg zu behalten.", "srvSave": "Als Server-Standard speichern", "srvClear": "Server-Standard löschen", "srvSaved": "Gespeichert", "srvCleared": "Gelöscht", "srvErr": "Fehlgeschlagen — Admin-Anmeldung erforderlich", "crMode": "Weiterlesen-Regal", "crCombine": "In Karussell integrieren", "crSeparate": "Als eigenes Regal", "crHide": "Ausgeblendet"},
     fr: {"title": "Personnalisation du thème", "subtitle": "Personnalisez l’apparence de votre bibliothèque. Les modifications sont enregistrées automatiquement.", "branding": "Image de marque et style", "colour": "Couleur et thème", "homeCar": "Accueil et carrousel", "sidebar": "Menus latéraux", "appName": "Nom de l’application", "appNameHint": "Laissez vide pour le nom par défaut.", "logoUrl": "URL du logo personnalisé", "logoHint": "Laissez vide pour le logo par défaut.", "accent": "Couleur d’accent", "baseTheme": "Thème de base", "mainFont": "Police principale", "carousel": "Défilement automatique du carrousel", "carouselHint": "Secondes entre les diapositives. 0 pour désactiver.", "customSeries": "Séries récentes étendues", "seriesCount": "Nombre de séries récentes", "seriesCountHint": "Nombre de séries à afficher dans l’étagère étendue.", "hideShelves": "Masquer les étagères d’accueil", "sidebarHint": "Masquer les entrées du menu latéral inutilisées.", "showAppName": "Afficher le nom de l’application", "colorizeLogo": "Coloriser le logo avec la couleur d’accent", "hideSeries": "Masquer les séries", "hideCollections": "Masquer les collections", "hideAuthors": "Masquer les auteurs", "hideNarrators": "Masquer les narrateurs", "hideStats": "Masquer les statistiques", "hideRecentlyAdded": "Masquer Ajouts récents", "hideRecentSeries": "Masquer Séries récentes", "hideContinueSeries": "Masquer Continuer la série", "hideListenAgain": "Masquer Réécouter", "hideDiscover": "Masquer Découvrir", "hideNewestAuthors": "Masquer Nouveaux auteurs", "seriesCards": "Couvertures de séries empilées", "heroCarousel": "Carrousel d’accueil", "gearLabel": "Thème"},
     es: {"title": "Personalización del tema", "subtitle": "Personaliza el aspecto de tu biblioteca. Los cambios se guardan automáticamente.", "branding": "Marca y estilo", "colour": "Color y tema", "homeCar": "Inicio y carrusel", "sidebar": "Menús laterales", "appName": "Nombre de la aplicación", "appNameHint": "Déjalo vacío para el nombre predeterminado.", "logoUrl": "URL de logotipo personalizado", "logoHint": "Déjalo vacío para el logotipo predeterminado.", "accent": "Color de acento", "baseTheme": "Tema base", "mainFont": "Fuente principal", "carousel": "Avance automático del carrusel", "carouselHint": "Segundos entre diapositivas. 0 para desactivar.", "customSeries": "Series recientes ampliadas", "seriesCount": "Número de series recientes", "seriesCountHint": "Cuántas series mostrar en el estante ampliado.", "hideShelves": "Ocultar estantes de inicio", "sidebarHint": "Oculta entradas del menú lateral que no uses.", "showAppName": "Mostrar nombre de la aplicación", "colorizeLogo": "Colorear logotipo con el color de acento", "hideSeries": "Ocultar Series", "hideCollections": "Ocultar Colecciones", "hideAuthors": "Ocultar Autores", "hideNarrators": "Ocultar Narradores", "hideStats": "Ocultar Estadísticas", "hideRecentlyAdded": "Ocultar Añadidos recientemente", "hideRecentSeries": "Ocultar Series recientes", "hideContinueSeries": "Ocultar Continuar serie", "hideListenAgain": "Ocultar Escuchar de nuevo", "hideDiscover": "Ocultar Descubrir", "hideNewestAuthors": "Ocultar Autores más recientes", "seriesCards": "Portadas de series apiladas", "heroCarousel": "Carrusel de inicio", "gearLabel": "Tema"},
@@ -536,6 +537,12 @@
           <div id="nh-togs-rail" class="nh-toggle-group"></div>
         </section>
 
+        <section class="nh-card">
+          <h2 class="nh-card-title">${T.bookPage || PANEL_T.en.bookPage}</h2>
+          <p class="nh-hint" style="margin-top:0;">${T.ratingsHint || PANEL_T.en.ratingsHint}</p>
+          <div class="nh-field" id="nh-tog-ratings"></div>
+        </section>
+
       </div>
     `;
 
@@ -561,6 +568,8 @@
     homeTogs.appendChild(createToggle(T.hideListenAgain, 'hideHomeListenAgain'));
     homeTogs.appendChild(createToggle(T.hideDiscover, 'hideHomeDiscover'));
     homeTogs.appendChild(createToggle(T.hideNewestAuthors, 'hideHomeNewAuthors'));
+
+    panel.querySelector('#nh-tog-ratings').appendChild(createToggle(T.ratingsToggle || PANEL_T.en.ratingsToggle, 'showRatings'));
 
     const bindInput = (id, key) => {
       const el = panel.querySelector(id);
@@ -840,7 +849,11 @@
     const oldPanel = document.getElementById('nh-settings-panel');
     if (oldPanel) oldPanel.remove();
 
-    createCustomizationsPanel(body, !isUserAdmin());
+    try {
+      createCustomizationsPanel(body, !isUserAdmin());
+    } catch (e) {
+      try { console.warn('[NanoHive] settings panel build failed:', e); } catch (e2) {}
+    }
 
     const close = () => modal.remove();
     modal.querySelector('.nh-modal-backdrop').addEventListener('click', close);
@@ -868,7 +881,11 @@
     let panel = document.querySelector('#nh-settings-panel:not(#nh-settings-modal #nh-settings-panel)');
 
     if (wantCustom) {
-      if (!panel) panel = createCustomizationsPanel(configPage, false, true);
+      if (!panel) {
+        try { panel = createCustomizationsPanel(configPage, false, true); }
+        catch (e) { try { console.warn('[NanoHive] settings panel build failed:', e); } catch (e2) {} }
+      }
+      if (!panel) return;
       panel.style.display = '';
       Array.from(configPage.children).forEach(ch => {
         if (ch !== panel && ch.style.display !== 'none') {
@@ -1385,7 +1402,13 @@
       const t = getTranslations(langCode);
 
       const slides = (await Promise.all(cards.map(card => buildSlideData(card, t)))).filter(Boolean);
-      if (!slides.length) { restoreNative(); return; }
+      if (!slides.length) {
+        restoreNative();
+        const fails = (parseInt(row.dataset.heroFails, 10) || 0) + 1;
+        row.dataset.heroFails = String(fails);
+        if (fails >= 2) row.dataset.heroInjected = 'true'; // stop re-trying; keep the stock shelf
+        return;
+      }
 
       const dateString = new Intl.DateTimeFormat(langCode, { weekday: 'long' }).format(new Date()).toUpperCase();
       const hour = new Date().getHours();
@@ -1547,6 +1570,13 @@
 
     } catch (e) {
       restoreNative();
+      // A data-specific failure used to retry every tick: hide shelf -> fail ->
+      // restore -> hide again = permanent home-page flicker + scroll jumps.
+      // Log it and give up after the 2nd failure, keeping the stock shelf.
+      try { console.warn('[NanoHive] hero carousel build failed:', e); } catch (e2) {}
+      const fails = (parseInt(row.dataset.heroFails, 10) || 0) + 1;
+      row.dataset.heroFails = String(fails);
+      if (fails >= 2) row.dataset.heroInjected = 'true';
     } finally {
       isInjectingHero = false;
     }
@@ -2342,7 +2372,7 @@
   // at-a-glance "what am I running" readout. Restore it and add the theme version.
   // Bump NH_THEME_VERSION on each release (the composite THEME_VERSION from NH_CONFIG is
   // shown on hover for exact per-file versions).
-  const NH_THEME_VERSION = 'v1.8.0';
+  const NH_THEME_VERSION = 'v1.9.1';
   function nhAbsVersion() {
     try {
       const v = window.$nuxt && window.$nuxt.$store && window.$nuxt.$store.state.serverSettings && window.$nuxt.$store.state.serverSettings.version;
@@ -2390,8 +2420,42 @@
     }
   }
 
+  // The theme began life as a Tampermonkey userscript. If a browser still has that
+  // old userscript installed, it injects a SECOND (outdated) copy of the theme on
+  // top of the proxy's inlined one — the two fight over the DOM every tick, which
+  // presents as flicker, scroll jumps, a self-emptying settings panel, mangled
+  // series cards, and stale CSS. Detect the duplicate injection and say so loudly.
+  function nhDetectDuplicateTheme() {
+    if (document.getElementById('nh-dup-banner')) return;
+    const dupCore = document.querySelectorAll('style#nanohive-abs-theme').length > 1;
+    const dupBook = document.querySelectorAll('style#nanohive-abs-details-theme').length > 1;
+    if (!dupCore && !dupBook) return;
+    try { console.error('[NanoHive] DUPLICATE theme injection detected — an old NanoHive userscript (Tampermonkey/Greasemonkey) is still installed in this browser. Remove it; the server now themes every browser by itself.'); } catch (e) {}
+    const b = document.createElement('div');
+    b.id = 'nh-dup-banner';
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#7a1f1f;color:#fff;font:600 14px/1.4 system-ui,sans-serif;padding:10px 44px 10px 16px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.5);';
+    b.textContent = 'NanoHive: this browser still runs the OLD NanoHive userscript (Tampermonkey), which conflicts with the server theme. Please remove/disable it and reload.';
+    const x = document.createElement('button');
+    x.textContent = '×';
+    x.style.cssText = 'position:absolute;right:10px;top:6px;background:none;border:none;color:#fff;font-size:20px;cursor:pointer;';
+    x.addEventListener('click', () => b.remove());
+    b.appendChild(x);
+    (document.body || document.documentElement).appendChild(b);
+  }
+
+  const nhWarned = {};
   function runMutations() {
-    const safe = (fn) => { try { fn(); } catch (e) { /* one failure must not block the rest */ } };
+    // One failure must not block the rest — but it must not be invisible either:
+    // log the FIRST failure per subsystem so field issues are diagnosable from F12.
+    const safe = (fn) => {
+      try { fn(); } catch (e) {
+        if (!nhWarned[fn.name]) {
+          nhWarned[fn.name] = 1;
+          try { console.warn('[NanoHive] ' + fn.name + ' failed:', e); } catch (e2) {}
+        }
+      }
+    };
+    safe(nhDetectDuplicateTheme);
     safe(nhVersionFooter);
     safe(nhSeriesScale);
     safe(nhCoverModeClass);
@@ -2409,8 +2473,8 @@
     safe(hideMobileUploadButton);
     safe(injectGearButton);
     safe(injectHeroBanner);
-    manageRecentSeries();
-    applyRecentSeriesSize();
+    safe(manageRecentSeries);
+    safe(applyRecentSeriesSize);
     safe(manageCinematic);
     safe(injectGoodreads);
   }

@@ -1,4 +1,4 @@
-/* NanoHive ABS — Core Theme & Player  v3.29.5  (injected build) */
+/* NanoHive ABS — Core Theme & Player  v3.29.9  (injected build) */
 
 (function () {
   'use strict';
@@ -14,6 +14,16 @@
     } catch (e) {}
     return url;
   }
+  // Mirror the Bearer token from ABS's own traffic (axios/XHR + fetch). Theme
+  // features that call the API (ratings, hero) previously guessed where each ABS
+  // release keeps its token in the Vuex store — and the guesses go stale (observed:
+  // a session where every store path was empty while ABS itself authenticated
+  // fine). Whatever header ABS sends is by definition the right one.
+  function nhSniffAuth(value) {
+    try {
+      if (value && /^Bearer .+/.test(String(value))) window.__NH_TOKEN = String(value).slice(7);
+    } catch (e) {}
+  }
   const origFetch = window.fetch;
   window.fetch = function (input, init) {
     try {
@@ -21,12 +31,21 @@
       const bumped = bumpPersonalized(url);
       if (bumped !== url) input = (typeof input === 'string') ? bumped : new Request(bumped, input);
     } catch (e) {}
+    try {
+      const h = (init && init.headers) || (input && typeof input === 'object' && input.headers);
+      if (h) nhSniffAuth(typeof h.get === 'function' ? h.get('Authorization') : (h.Authorization || h.authorization));
+    } catch (e) {}
     return origFetch.call(this, input, init);
   };
   const origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method, url) {
     try { arguments[1] = bumpPersonalized(url); } catch (e) {}
     return origOpen.apply(this, arguments);
+  };
+  const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+  XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+    try { if (String(name).toLowerCase() === 'authorization') nhSniffAuth(value); } catch (e) {}
+    return origSetHeader.apply(this, arguments);
   };
 
   const font = document.createElement('link');
@@ -188,6 +207,9 @@ body.nh-pad-page #app-content .page { padding-top: 75px !important; }
 }
 
 /* LIBRARY / SERIES PAGE TOOLBAR (FROSTED) */
+/* Side padding: flat 32px (stock ABS uses px-8 = 32px), so the item count and the
+   filter/sort controls hug the screen edges at EVERY width — the old centered-band
+   formula (50vw - 800px) pushed them absurdly inward on ultrawide monitors. */
 #toolbar.nh-frosted-toolbar {
   position: fixed !important;
   top: 65px !important;
@@ -200,8 +222,8 @@ body.nh-pad-page #app-content .page { padding-top: 75px !important; }
   backdrop-filter: blur(28px) saturate(150%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(150%) !important;
   margin: 0 !important;
-  padding-left: calc(max(24px, 50vw - 800px)) !important;
-  padding-right: calc(max(24px, 50vw - 800px)) !important;
+  padding-left: 32px !important;
+  padding-right: 32px !important;
   box-shadow: none !important;
   border-bottom: 1px solid var(--nh-hairline-lit) !important;
   display: flex !important;
@@ -233,8 +255,8 @@ body.nh-pad-page #app-content .page { padding-top: 75px !important; }
   height: 50px !important;
   z-index: 45 !important;
   margin: 0 !important;
-  padding-left: calc(max(24px, 50vw - 800px)) !important;
-  padding-right: calc(max(24px, 50vw - 800px)) !important;
+  padding-left: 32px !important;
+  padding-right: 32px !important;
   box-shadow: 0 8px 30px rgba(0,0,0,0) !important;
   display: flex !important;
   align-items: center !important;
@@ -640,6 +662,11 @@ button.bg-success, button.bg-success *, a.bg-success, a.bg-success *, .abs-btn.b
     #bookshelf h1, #bookshelf .text-3xl, #bookshelf .text-4xl, #bookshelf .text-5xl { font-size: 1.3rem !important; line-height: 1.15 !important; }
     .bookshelf-row h2, .nh-rs-heading { font-size: 1.05rem !important; }
 
+    /* Card labels (title/author under the covers): ABS scales them by inheritance from
+       the cover-size slider, so at small sizes (60) they shrink to ~7px. Floor the text
+       wrapper at a readable size; 1em keeps larger slider values exactly as they were. */
+    [cy-id="detailBottom"] { font-size: max(0.72rem, 1em) !important; }
+
 }
 
 /* Hero: on portrait / narrow widths (phone AND tablet, up to 1023px) the desktop
@@ -647,7 +674,10 @@ button.bg-success, button.bg-success *, a.bg-success, a.bg-success *, .abs-btn.b
    the buttons. Use a centered vertical stack that fills the width. Sizes scale with the
    viewport (clamp) so one block covers ~320-1023px. Child 1=bg, 2=gradient, 3=text, 4=cover. */
 @media (max-width: 1023.98px) {
-    #nh-hero-container { width: 100% !important; padding-right: 0 !important; }
+    /* Do NOT zero padding-right here: enhancements.js sets it to the shelf row's own
+       padding-left so the banner is inset equally on both sides. Zeroing it (old rule)
+       made the carousel touch the right screen edge while keeping the left gutter. */
+    #nh-hero-container { width: 100% !important; }
     .nh-hero-banner { flex-direction: column !important; align-items: center !important; text-align: center !important; padding: clamp(20px, 4vw, 40px) clamp(18px, 4vw, 44px) !important; gap: 0 !important; border-radius: 18px !important; }
     /* cover on top — real portrait aspect, responsive, never cropped */
     .nh-hero-banner > div:nth-child(4) { order: 1 !important; width: auto !important; height: auto !important; margin: 0 auto clamp(14px, 2.5vw, 22px) !important; flex-shrink: 0 !important; }

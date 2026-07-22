@@ -18,7 +18,7 @@ case "$NH_APP_NAME$NH_LOGO_URL" in
     ;;
 esac
 
-for var in NH_SHOW_LOGO_TEXT NH_COLORIZE_LOGO NH_SHOW_RECENT_SERIES NH_CUSTOM_SERIES_CARDS NH_SHOW_HERO_CAROUSEL; do
+for var in NH_SHOW_LOGO_TEXT NH_COLORIZE_LOGO NH_SHOW_RECENT_SERIES NH_CUSTOM_SERIES_CARDS NH_SHOW_HERO_CAROUSEL NH_SHOW_RATINGS; do
   eval "val=\$$var"
   case "$val" in
     true|false) ;;
@@ -31,6 +31,8 @@ done
 # page head always yields valid JS.
 mkdir -p /data/nh
 [ -f /data/nh/server-config.json ] || printf '{}' > /data/nh/server-config.json
+# Server-wide ratings store (see njs/nh-ratings.js); seed so first GET is valid JSON.
+[ -f /data/nh/ratings.json ] || printf '{"v":1,"items":{}}' > /data/nh/ratings.json
 chown -R nginx:nginx /data/nh
 
 echo "[nanohive-abs-theme] upstream=${ABS_UPSTREAM} version=${THEME_VERSION:-latest} theme=${NH_BASE_THEME} accent=${NH_ACCENT_COLOR}"

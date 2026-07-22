@@ -35,6 +35,8 @@ through the proxy, they just won't be themed.
 - Ebooks in progress can join the hero carousel (default), stay a separate shelf, or be
   hidden — per-user choice in the customization panel
 - Covers follow your library's aspect setting everywhere, including the details page
+- **Server-wide book ratings** (v1.9.1+): Goodreads-style stars, score, and short
+  reviews on every book page, shared between all users of the server — see below
 - Panel and carousel fully translated into all 40 languages ABS ships
 
 
@@ -114,6 +116,7 @@ vars** beat the built-in defaults.
 | `NH_RECENT_SERIES_COUNT` | `12` | Series shown in that shelf |
 | `NH_CUSTOM_SERIES_CARDS` | `true` | Stacked series covers; `false` = stock ABS series cards (keeps font + count badge) |
 | `NH_SHOW_HERO_CAROUSEL` | `true` | The home hero carousel. `true`/`false` only |
+| `NH_SHOW_RATINGS` | `true` | Server-wide book ratings on the book page. `true`/`false` only |
 | `NH_FOUC_BG` | `#181512` | Background painted before the theme loads. Match your base theme's canvas |
 | `THEME_VERSION` | *(build stamp)* | Informational; printed at startup |
 
@@ -143,6 +146,30 @@ itself instead:
 
 Either way the logo is served same-origin from the volume, so it loads with no outbound
 request. It persists across updates as long as the `/data/nh` volume is mounted.
+
+### Server-wide book ratings
+
+A Goodreads-style rating block sits under the Play/Read buttons on every book page:
+big stars filled to the **community average** with the numeric score beside them, and
+a "N ratings · M reviews" link that opens a popup listing everyone's stars, dates,
+and review text. Hover the stars to preview your own rating and **click to save it**
+(half-star steps, 0.5–5); your rating then shows on its own line with *Add/Edit
+review* and *Remove* actions. Ratings are shared between all users of the server.
+Turn the feature off per-user in Settings → Theme → *Book Page*, or server-wide with
+`NH_SHOW_RATINGS=false`.
+
+How it works and what to know:
+
+- Ratings are stored on the proxy at `/data/nh/ratings.json` — the same volume as the
+  server defaults, so **mount `/data/nh`** or ratings vanish when the container is
+  recreated. ABS itself is never written to.
+- Identity is enforced by the proxy: every read/write is validated against ABS with
+  the caller's own login token (nginx `auth_request`), so ratings are always filed
+  under the real logged-in user and nobody can rate as someone else.
+- Admins can remove any user's rating (a small *remove* link in the reviews popup) —
+  handy moderation for family servers.
+- The API is served by nginx's built-in njs engine (`/_nh/api/ratings`); no extra
+  container or database is involved.
 
 ### Where settings live
 

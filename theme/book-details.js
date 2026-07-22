@@ -1,4 +1,4 @@
-/* NanoHive ABS — Book Details Redesign  v1.22.0  (injected build) */
+/* NanoHive ABS — Book Details Redesign  v1.25.1  (injected build) */
 
 (function () {
   'use strict';
@@ -305,16 +305,32 @@
     :is(#item-page-wrapper, .modal) .tracksTable {
         /* Sit the table in its own softly-recessed rounded panel so it reads as part
            of the theme instead of floating loose against the page. border-collapse
-           must be separate for border-radius + overflow clipping to take effect. */
+           must be separate for border-radius to take effect.
+           overflow must stay VISIBLE: the Ebook/Library Files rows open a context
+           dropdown positioned inside the table, and overflow:hidden clipped it at the
+           panel edge. The panel background still rounds on its own; the corner cells
+           below carry matching radii so hover highlights don't poke out square. */
         background: rgba(0,0,0,0.2) !important;
         width: 100% !important;
         border: none !important;
         border-radius: 18px !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         border-collapse: separate !important;
         border-spacing: 0 !important;
         margin-top: 16px !important;
     }
+    :is(#item-page-wrapper, .modal) .tracksTable > *:first-child > tr:first-child > *:first-child { border-top-left-radius: 18px !important; }
+    :is(#item-page-wrapper, .modal) .tracksTable > *:first-child > tr:first-child > *:last-child { border-top-right-radius: 18px !important; }
+    :is(#item-page-wrapper, .modal) .tracksTable > *:last-child > tr:last-child > *:first-child { border-bottom-left-radius: 18px !important; }
+    :is(#item-page-wrapper, .modal) .tracksTable > *:last-child > tr:last-child > *:last-child { border-bottom-right-radius: 18px !important; }
+    /* While a row's context menu is open, lift its whole section above the following
+       sections (equal z-index siblings paint in DOM order, so a menu spilling past the
+       section's bottom edge would otherwise render underneath the next table). */
+    #item-page-wrapper .w-full.my-2.mt-6:has(.border-black-200.shadow-lg) { position: relative !important; z-index: 25 !important; }
+    /* Files-table row menus: let the box grow to its labels (ABS gives it a fixed
+       width that clips "Set as supplementary"). Direction (drop-up vs drop-down) is
+       decided per-open in JS from the actual space below — see nhMenuDirection. */
+    :is(#item-page-wrapper, .modal) .tracksTable [role="menu"] { min-width: max-content !important; }
 
     :is(#item-page-wrapper, .modal) .tracksTable tr,
     :is(#item-page-wrapper, .modal) .tracksTable thead,
@@ -398,6 +414,50 @@
         :is(#item-page-wrapper, .modal) .tracksTable td { font-size: 0.82rem !important; padding: 10px 8px !important; }
         #item-page-wrapper button, #item-page-wrapper a { white-space: nowrap; }
     }
+
+    /* ============ COMMUNITY RATINGS (server-wide, /_nh/api/ratings) ============ */
+    /* Compact, headerless: an interactive star row directly under the Play/Read
+       buttons (the buttons row carries margin-bottom:48px, so pull back up). */
+    #nh-ratings { margin: -26px 0 40px; max-width: 95%; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; position: relative; z-index: 10; }
+    #nh-ratings .nh-rt-main { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 34px; }
+    #nh-ratings .nh-rt-avg { color: var(--nh-amber, #e0c27a); font-size: 0.95rem; }
+    .nh-rt-stars { position: relative; display: inline-block; font-size: 1.05rem; line-height: 1; letter-spacing: 2px; color: rgba(255,255,255,0.22); white-space: nowrap; user-select: none; }
+    .nh-rt-stars .nh-rt-fill { position: absolute; top: 0; left: 0; height: 100%; overflow: hidden; white-space: nowrap; color: var(--nh-amber, #e0c27a); pointer-events: none; }
+    #nh-rt-picker { cursor: pointer; font-size: 2.1rem; letter-spacing: 3px; }
+    .nh-rt-score { font-size: 1.6rem; font-weight: 600; color: #f4eee2; font-family: var(--nh-serif), 'Spectral', serif; line-height: 1; }
+    .nh-rt-your { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+    .nh-rt-your-label { color: #9a9085; font-size: 0.9rem; }
+    .nh-rt-link { background: none; border: none; color: #9a9085; cursor: pointer; font-size: 0.85rem; text-decoration: underline; padding: 0; font-family: inherit; }
+    .nh-rt-link:hover { color: #d8cfc2; }
+    .nh-rt-status { font-size: 0.85rem; color: #8a8075; }
+    #nh-rt-modal { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .nh-rt-modal-bg { position: absolute; inset: 0; background: rgba(10, 8, 6, 0.6); backdrop-filter: blur(3px); }
+    .nh-rt-modal-box { position: relative; width: min(92vw, 560px); max-height: 78vh; overflow-y: auto; background: rgba(var(--nh-bg-rgb, 24, 21, 18), 0.98); border: 1px solid rgba(255,255,255,0.14); border-radius: 16px; padding: 16px 22px 12px; box-shadow: 0 24px 70px rgba(0,0,0,0.6); }
+    .nh-rt-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .nh-rt-modal-head > span { font-family: var(--nh-serif), 'Spectral', serif; font-size: 1.15rem; color: #f4eee2; }
+    .nh-rt-modal-x { background: none; border: none; color: #9a9085; font-size: 26px; line-height: 1; cursor: pointer; padding: 2px 6px; }
+    .nh-rt-modal-x:hover { color: #ffffff; }
+    /* Inside the popup the accent-coloured number can sit too dark on the panel — go white. */
+    .nh-rt-modal-box .nh-rt-avg { color: #f4eee2; }
+    #nh-rt-editor { margin-top: 10px; max-width: 620px; }
+    #nh-rt-review { width: 100%; min-height: 58px; background: rgba(0,0,0,0.25); color: #d8cfc2; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; font-family: inherit; resize: vertical; box-sizing: border-box; }
+    #nh-rt-review:focus { outline: none; border-color: var(--nh-amber, #e0c27a); }
+    .nh-rt-actions { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+    .nh-rt-btn { background: var(--nh-amber, #e0c27a); color: #14110d; border: none; border-radius: 9px; padding: 7px 18px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+    #nh-rt-list { margin-top: 14px; max-width: 620px; }
+    .nh-rt-row { display: flex; flex-direction: column; gap: 3px; padding: 9px 2px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .nh-rt-row:last-child { border-bottom: none; }
+    .nh-rt-row-top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .nh-rt-user { color: #f4eee2; font-weight: 600; font-size: 0.92rem; }
+    .nh-rt-date { color: #8a8075; font-size: 0.78rem; }
+    .nh-rt-text { color: #d8cfc2; font-size: 0.92rem; line-height: 1.5; margin: 1px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .nh-rt-del { background: none; border: none; color: #8a8075; cursor: pointer; font-size: 0.76rem; text-decoration: underline; padding: 0; }
+    .nh-rt-del:hover { color: #d98c7a; }
+    @media (max-width: 640px) {
+      #nh-ratings { max-width: 100%; margin: -4px 0 24px; }
+      #nh-rt-picker { font-size: 1.8rem; }
+      .nh-rt-score { font-size: 1.3rem; }
+    }
   `;
 
   const style = document.createElement('style');
@@ -432,6 +492,426 @@
 
       overlay.querySelector('img').src = src.replace('width=800', 'width=1600');
       overlay.style.display = 'flex';
+  }
+
+  // ==========================================
+  // 2.4 FILES-TABLE MENU DIRECTION
+  // ==========================================
+  // Flip a row's context menu upward ONLY when it would run past the bottom of the
+  // viewport (typically the last rows of the last table). Everything else keeps the
+  // native drop-down. Measured per open — a static CSS rule can't know the space.
+  document.addEventListener('click', function () {
+      setTimeout(function () {
+          document.querySelectorAll(':is(#item-page-wrapper, .modal) .tracksTable [role="menu"]').forEach(function (m) {
+              if (!m.offsetParent) return; // menu closed
+              const wrap = m.parentElement;
+              if (!wrap) return;
+              const wr = wrap.getBoundingClientRect();
+              const mh = m.getBoundingClientRect().height || 0;
+              if (window.innerHeight - wr.bottom < mh + 16) {
+                  m.style.setProperty('top', 'auto', 'important');
+                  m.style.setProperty('bottom', 'calc(100% + 4px)', 'important');
+                  m.style.setProperty('margin-top', '0', 'important');
+              } else {
+                  m.style.removeProperty('top');
+                  m.style.removeProperty('bottom');
+                  m.style.removeProperty('margin-top');
+              }
+          });
+      }, 60);
+  }, true);
+
+  // ==========================================
+  // 2.5 COMMUNITY RATINGS (server-wide, /_nh/api/ratings)
+  // ==========================================
+  // Stars + short reviews shared by every user of this server. The nginx side
+  // (njs/nh-ratings.js) verifies identity against ABS /api/me, so the client
+  // only ever sends its own Bearer token. All user-generated strings are
+  // rendered via textContent — never innerHTML.
+  // Resilience: right after a hard page load the Vue auth store may not have a
+  // token yet, so the first fetch can 401 — retry with backoff instead of
+  // latching an error. If the backend truly isn't there (404: theme deployed
+  // without the njs API) the section removes itself quietly.
+  const nhRt = { itemId: null, ratings: null, tries: 0, timer: null, fetching: false, gone: false, dead: false, editorOpen: false, draft: null, modalOpen: false };
+
+  function nhRtEnabled() {
+    // Same precedence as the rest of the theme: user setting > UI server
+    // defaults > operator env config > default ON.
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('nh-settings') || '{}') || {}; } catch (e) {}
+    const layers = [saved, window.NH_SERVER_CONFIG || {}, window.NH_CONFIG || {}];
+    for (const l of layers) {
+      if (l && l.showRatings !== undefined && l.showRatings !== null && l.showRatings !== '') return l.showRatings !== false;
+    }
+    return true;
+  }
+
+  function nhRtToken() {
+    // First choice: the token sniffed from ABS's own API traffic (core.js mirrors
+    // every Authorization header the app sends) — immune to store-layout changes.
+    if (window.__NH_TOKEN) return window.__NH_TOKEN;
+    try {
+      const st = window.$nuxt && window.$nuxt.$store;
+      if (st) {
+        const t = st.getters['user/getToken'] || (st.state.user.user && (st.state.user.user.accessToken || st.state.user.user.token));
+        if (t) return t;
+      }
+    } catch (e) {}
+    try { return localStorage.getItem('token') || (JSON.parse(localStorage.getItem('vuex') || '{}').user || {}).token || ''; } catch (e) { return ''; }
+  }
+
+  function nhRtMe() {
+    try {
+      const st = window.$nuxt && window.$nuxt.$store;
+      const u = st && st.state.user && st.state.user.user;
+      if (!u || !u.id) return null;
+      return { id: String(u.id), name: u.username || 'me', admin: !!st.getters['user/getIsAdminOrUp'] };
+    } catch (e) { return null; }
+  }
+
+  function nhRtLang() {
+    try { if (window.$nuxt && window.$nuxt.$i18n && window.$nuxt.$i18n.locale) return window.$nuxt.$i18n.locale; } catch (e) {}
+    return document.documentElement.lang || navigator.language || 'en';
+  }
+
+  const NH_RT_T = {
+    en: { ratingWords: ['rating', 'ratings'], reviewWords: ['review', 'reviews'], yourLabel: 'Your rating:', rateHint: 'Click to rate', ph: 'Add a short review (optional)…', save: 'Save', clear: 'Remove', addReview: 'Add a review', editReview: 'Edit review', you: 'you', err: 'Could not save', del: 'remove' },
+    pl: { ratingWords: ['ocena', 'oceny', 'ocen'], reviewWords: ['recenzja', 'recenzje', 'recenzji'], yourLabel: 'Twoja ocena:', rateHint: 'Kliknij, aby ocenić', ph: 'Dodaj krótką recenzję (opcjonalnie)…', save: 'Zapisz', clear: 'Usuń', addReview: 'Dodaj recenzję', editReview: 'Edytuj recenzję', you: 'ty', err: 'Nie udało się zapisać', del: 'usuń' }
+  };
+  function nhRtT() { return NH_RT_T[(nhRtLang().split('-')[0] || 'en').toLowerCase()] || NH_RT_T.en; }
+
+  // Pluralize with Polish three-form support: [one, few, many]; English: [one, many].
+  function nhRtWord(n, forms) {
+    if (forms.length === 2) return n === 1 ? forms[0] : forms[1];
+    if (n === 1) return forms[0];
+    const d = n % 10, h = n % 100;
+    if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return forms[1];
+    return forms[2];
+  }
+
+  function nhRtStarsEl(value, big) {
+    const wrap = document.createElement('span');
+    wrap.className = 'nh-rt-stars';
+    if (big) wrap.id = 'nh-rt-picker';
+    const base = document.createElement('span');
+    base.textContent = '★★★★★';
+    const fill = document.createElement('span');
+    fill.className = 'nh-rt-fill';
+    fill.textContent = '★★★★★';
+    fill.style.width = (Math.max(0, Math.min(5, value || 0)) / 5 * 100) + '%';
+    wrap.appendChild(base); wrap.appendChild(fill);
+    wrap._fill = fill;
+    return wrap;
+  }
+
+  function nhRtHeaders(json) {
+    const h = {};
+    const t = nhRtToken();
+    if (t) h['Authorization'] = 'Bearer ' + t;
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  }
+
+  function nhRtRemove() {
+    const s = document.getElementById('nh-ratings');
+    if (s) s.remove();
+    const m = document.getElementById('nh-rt-modal');
+    if (m) m.remove();
+  }
+
+  function nhRtRetry(itemId) {
+    nhRt.tries++;
+    if (nhRt.tries > 6) {
+      nhRt.dead = true;
+      try { console.warn('[NanoHive] ratings: giving up after retries — last HTTP status: ' + (nhRt.lastStatus || 'network/no-token')); } catch (e) {}
+      nhRtRemove();
+      return;
+    }
+    clearTimeout(nhRt.timer);
+    nhRt.timer = setTimeout(() => { if (nhRt.itemId === itemId) nhRtFetch(itemId); }, 1200 * nhRt.tries);
+  }
+
+  function nhRtFetch(itemId) {
+    if (nhRt.fetching) return;
+    if (!nhRtToken()) { nhRt.lastStatus = 'no-token'; nhRtRetry(itemId); return; } // auth store not hydrated yet
+    nhRt.fetching = true;
+    fetch('/_nh/api/ratings?item=' + encodeURIComponent(itemId), { headers: nhRtHeaders(), credentials: 'include' })
+      .then(r => {
+        if (r.status === 404 || r.status === 405) { nhRt.gone = true; return null; } // no njs backend behind this proxy
+        if (!r.ok) { nhRt.lastStatus = r.status; throw new Error(r.status); }
+        return r.json();
+      })
+      .then(j => {
+        nhRt.fetching = false;
+        if (nhRt.itemId !== itemId) return; // navigated away meanwhile
+        if (nhRt.gone) { nhRtRemove(); return; }
+        nhRt.ratings = (j && j.items && j.items[itemId]) || {};
+        nhRt.tries = 0;
+        nhRtRender();
+      })
+      .catch(() => {
+        nhRt.fetching = false;
+        // Distinguish "never had a token" from "request died on the wire".
+        if (typeof nhRt.lastStatus !== 'number') nhRt.lastStatus = 'network-error';
+        if (nhRt.itemId === itemId) nhRtRetry(itemId);
+      });
+  }
+
+  function nhRtSave(stars, review, forUser, statusEl) {
+    const body = { itemId: nhRt.itemId, stars: stars, review: review || '' };
+    if (forUser) body.forUser = forUser;
+    fetch('/_nh/api/ratings', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
+      .then(r => {
+        if (!r.ok) {
+          return r.text().then(t => {
+            try { console.warn('[NanoHive] ratings save failed: HTTP ' + r.status + ' ' + String(t).slice(0, 200)); } catch (e) {}
+            throw new Error(r.status);
+          });
+        }
+        return r.json();
+      })
+      .then(j => {
+        nhRt.ratings = (j.items && j.items[body.itemId]) || {};
+        nhRt.err = false;
+        nhRtRender();
+      })
+      .catch(() => { if (statusEl) statusEl.textContent = nhRtT().err; });
+  }
+
+  function nhRtRender() {
+    const oldModal = document.getElementById('nh-rt-modal');
+    if (oldModal) oldModal.remove();
+    const section = document.getElementById('nh-ratings');
+    if (!section) return;
+    const T = nhRtT();
+    const lang = nhRtLang();
+    section.textContent = '';
+
+    const ratings = nhRt.ratings || {};
+    const entries = Object.keys(ratings).map(k => Object.assign({ uid: k }, ratings[k]))
+      .filter(e => typeof e.stars === 'number')
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    const me = nhRtMe();
+    const mine = me ? ratings[me.id] : null;
+
+    // --- Main row (Goodreads-style): big stars filled to the AVERAGE; hovering
+    // previews your own rating and clicking saves it. Big numeric score beside,
+    // then "N ratings · M reviews" which opens the reviews popup. ---
+    const main = document.createElement('div');
+    main.className = 'nh-rt-main';
+    const status = document.createElement('span');
+    status.className = 'nh-rt-status';
+
+    const avg = entries.length ? entries.reduce((s, e) => s + e.stars, 0) / entries.length : 0;
+    const nRev = entries.filter(e => e.review).length;
+
+    const picker = nhRtStarsEl(avg, true);
+    const setFill = v => { picker._fill.style.width = (Math.max(0, Math.min(5, v)) / 5 * 100) + '%'; };
+    if (me) {
+      picker.title = T.rateHint;
+      const valFrom = e => {
+        const rect = picker.getBoundingClientRect();
+        const cx = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+        const v = Math.ceil(((cx - rect.left) / rect.width) * 10) / 2;
+        return Math.max(0.5, Math.min(5, v));
+      };
+      picker.addEventListener('mousemove', e => setFill(valFrom(e)));
+      picker.addEventListener('mouseleave', () => setFill(avg));
+      picker.addEventListener('click', e => {
+        status.textContent = '…';
+        nhRtSave(valFrom(e), nhRt.editorOpen ? (nhRt.draft || '') : ((mine && mine.review) || ''), null, status);
+      });
+    }
+    main.appendChild(picker);
+
+    if (entries.length) {
+      const score = document.createElement('span');
+      score.className = 'nh-rt-score';
+      score.textContent = String(Number(avg.toFixed(2)));
+      main.appendChild(score);
+      const counts = document.createElement('button');
+      counts.type = 'button';
+      counts.className = 'nh-rt-link';
+      counts.textContent = entries.length + ' ' + nhRtWord(entries.length, T.ratingWords) + (nRev ? ' · ' + nRev + ' ' + nhRtWord(nRev, T.reviewWords) : '');
+      counts.addEventListener('click', () => { nhRt.modalOpen = true; nhRtRender(); });
+      main.appendChild(counts);
+    }
+    if (!mine) main.appendChild(status);
+    section.appendChild(main);
+
+    // --- "Your rating:" line ---
+    if (me && mine) {
+      const yr = document.createElement('div');
+      yr.className = 'nh-rt-your';
+      const lab = document.createElement('span');
+      lab.className = 'nh-rt-your-label';
+      lab.textContent = T.yourLabel;
+      yr.appendChild(lab);
+      yr.appendChild(nhRtStarsEl(mine.stars));
+      const num = document.createElement('span');
+      num.className = 'nh-rt-avg';
+      num.textContent = String(Number(mine.stars.toFixed(1)));
+      yr.appendChild(num);
+      const revBtn = document.createElement('button');
+      revBtn.type = 'button';
+      revBtn.className = 'nh-rt-link';
+      revBtn.textContent = mine.review ? T.editReview : T.addReview;
+      revBtn.addEventListener('click', () => {
+        nhRt.editorOpen = !nhRt.editorOpen;
+        if (nhRt.editorOpen && nhRt.draft === null) nhRt.draft = mine.review || '';
+        nhRtRender();
+      });
+      yr.appendChild(revBtn);
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'nh-rt-link';
+      clearBtn.textContent = T.clear;
+      clearBtn.addEventListener('click', () => { nhRt.editorOpen = false; nhRt.draft = null; nhRtSave(0, '', null, status); });
+      yr.appendChild(clearBtn);
+      yr.appendChild(status);
+      section.appendChild(yr);
+    }
+
+    // --- Collapsible review editor ---
+    if (me && nhRt.editorOpen) {
+      const ed = document.createElement('div');
+      ed.id = 'nh-rt-editor';
+      const ta = document.createElement('textarea');
+      ta.id = 'nh-rt-review';
+      ta.maxLength = 1500;
+      ta.placeholder = T.ph;
+      ta.value = nhRt.draft || '';
+      ta.addEventListener('input', () => { nhRt.draft = ta.value; });
+      ed.appendChild(ta);
+      const actions = document.createElement('div');
+      actions.className = 'nh-rt-actions';
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'nh-rt-btn';
+      saveBtn.textContent = T.save;
+      saveBtn.addEventListener('click', () => {
+        nhRt.editorOpen = false;
+        nhRtSave((mine && mine.stars) || 5, ta.value, null, status);
+      });
+      actions.appendChild(saveBtn);
+      ed.appendChild(actions);
+      section.appendChild(ed);
+    }
+
+    // --- Reviews popup (opened from the counts link; lives on <body> so it sits
+    // above the appbar and player, which have their own stacking contexts) ---
+    if (nhRt.modalOpen && entries.length) {
+      const overlay = document.createElement('div');
+      overlay.id = 'nh-rt-modal';
+      const bg = document.createElement('div');
+      bg.className = 'nh-rt-modal-bg';
+      const box = document.createElement('div');
+      box.className = 'nh-rt-modal-box';
+      const closeModal = () => { nhRt.modalOpen = false; nhRtRender(); };
+      bg.addEventListener('click', closeModal);
+      const head = document.createElement('div');
+      head.className = 'nh-rt-modal-head';
+      const title = document.createElement('span');
+      title.textContent = entries.length + ' ' + nhRtWord(entries.length, T.ratingWords) + (nRev ? ' · ' + nRev + ' ' + nhRtWord(nRev, T.reviewWords) : '');
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'nh-rt-modal-x';
+      x.textContent = '×';
+      x.addEventListener('click', closeModal);
+      head.appendChild(title);
+      head.appendChild(x);
+      box.appendChild(head);
+
+      entries.forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'nh-rt-row';
+        const top = document.createElement('div');
+        top.className = 'nh-rt-row-top';
+        const user = document.createElement('span');
+        user.className = 'nh-rt-user';
+        user.textContent = e.user + (me && e.uid === me.id ? ' (' + T.you + ')' : '');
+        top.appendChild(user);
+        top.appendChild(nhRtStarsEl(e.stars));
+        const num = document.createElement('span');
+        num.className = 'nh-rt-avg';
+        num.textContent = e.stars.toFixed(1);
+        top.appendChild(num);
+        if (e.ts) {
+          const date = document.createElement('span');
+          date.className = 'nh-rt-date';
+          try { date.textContent = new Date(e.ts).toLocaleDateString(lang); } catch (err2) { date.textContent = ''; }
+          top.appendChild(date);
+        }
+        if (me && me.admin && e.uid !== me.id) {
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'nh-rt-del';
+          del.textContent = T.del;
+          del.addEventListener('click', () => { if (window.confirm(T.clear + '?')) nhRtSave(0, '', e.uid, null); });
+          top.appendChild(del);
+        }
+        row.appendChild(top);
+        if (e.review) {
+          const p = document.createElement('p');
+          p.className = 'nh-rt-text';
+          p.textContent = e.review;
+          row.appendChild(p);
+        }
+        box.appendChild(row);
+      });
+
+      overlay.appendChild(bg);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+  }
+
+  function nhRtMaintain() {
+    const m = window.location.pathname.match(/\/item\/([^/?#]+)/);
+    const itemId = m ? m[1] : null;
+    let section = document.getElementById('nh-ratings');
+
+    if (!itemId || !nhRtEnabled()) {
+      if (section) section.remove();
+      const m = document.getElementById('nh-rt-modal');
+      if (m) m.remove();
+      nhRt.itemId = null;
+      return;
+    }
+
+    // Backend absent (404) or retries exhausted for this item: stay hidden quietly.
+    if (nhRt.itemId === itemId && (nhRt.gone || nhRt.dead)) {
+      if (section) section.remove();
+      return;
+    }
+
+    // Anchor directly under the Play/Read action row; description as fallback.
+    const btnRow = document.querySelector('#item-page-wrapper .flex.items-center.justify-center.md\\:justify-start.pt-4')
+      || document.querySelector('#item-page-wrapper [class*="pt-4 flex"]');
+    const desc = document.getElementById('item-description');
+    const recreated = !section;
+    if (!section) {
+      if (!btnRow && !desc) return; // page still mounting
+      section = document.createElement('div');
+      section.id = 'nh-ratings';
+      if (btnRow) btnRow.insertAdjacentElement('afterend', section);
+      else desc.insertAdjacentElement('beforebegin', section);
+    }
+
+    // (Re)load when the item changed OR Vue re-rendered the page and ate the old
+    // section (recreated). Renders only happen on state changes, never on the
+    // 500ms tick, so the review textarea is safe to type in.
+    if (nhRt.itemId !== itemId || recreated) {
+      if (nhRt.itemId !== itemId) {
+        nhRt.gone = false; nhRt.dead = false; nhRt.tries = 0;
+        nhRt.editorOpen = false; nhRt.draft = null; nhRt.modalOpen = false;
+      }
+      nhRt.itemId = itemId;
+      nhRt.ratings = null;
+      clearTimeout(nhRt.timer);
+      nhRtRender();
+      nhRtFetch(itemId);
+    }
   }
 
   function enhanceBookDetails() {
@@ -663,6 +1143,9 @@
               badge.remove();
           }
       }
+
+      // 5. Community ratings section (server-wide stars + reviews)
+      try { nhRtMaintain(); } catch (e) {}
   }
 
   // Poll for Vue SPA navigation changes
