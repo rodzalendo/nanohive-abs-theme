@@ -632,10 +632,9 @@
   let nhBdStartedLoaded = false;
   function nhBdLoadStarted() {
     if (nhBdStartedLoaded) return;
-    const tk = nhRtToken();
-    if (!tk) return;                 // retry on a later tick once the token exists
+    if (!nhRtToken()) return;         // retry on a later tick once authenticated
     nhBdStartedLoaded = true;
-    fetch('/_nh/api/dates', { headers: { Authorization: 'Bearer ' + tk }, credentials: 'include' })
+    fetch('/_nh/api/dates', { credentials: 'include' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         const it = (j && j.items) || {};
