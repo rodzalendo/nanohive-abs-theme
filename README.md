@@ -136,6 +136,7 @@ Server Defaults), which also beat the env vars.
 | `NH_SHOW_RATINGS` | `true` | Book ratings |
 | `NH_SOCIAL` | *(empty)* | `false` disables every social feature; the admin Social card decides otherwise |
 | `NH_FOUC_BG` | `#181512` | Background before the theme loads, match your base theme |
+| `NH_PROXY_BUFFER_SIZE` | `16k` | nginx upstream header buffer. Raise it if OIDC logins die with a 502 for users with many groups |
 
 Canvas colours for `NH_FOUC_BG`: `warm` `#181512` · `slate` `#111625` · `black` `#080808` ·
 `navy` `#0a111a` · `mocha` `#231c18` · `pine` `#121a15` · `plum` `#1a1320` · `crimson`

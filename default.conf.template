@@ -34,6 +34,9 @@ server {
     listen 80;
     server_name _;
     client_max_body_size 0;
+    # The same fat OIDC session cookie (#32) comes BACK on every request; the
+    # stock 8k line limit would turn it into a 400 "Request Header Too Large".
+    large_client_header_buffers 4 32k;
 
     # NH_SOCIAL env for njs (#25): set at SERVER level so every njs location
     # (social, stats, progress) sees the assigned value - a per-location set
@@ -369,6 +372,14 @@ server {
         proxy_set_header Connection $connection_upgrade;
 
         proxy_buffering off;
+        # Even with buffering off nginx reads the upstream RESPONSE HEADERS into one
+        # proxy_buffer_size buffer (4k stock). An OIDC callback for a user with many
+        # groups/claims overflows it and the login dies with a 502 "upstream sent too
+        # big header" that never reaches ABS's log (#32). NH_PROXY_BUFFER_SIZE, 16k
+        # default. busy_buffers must be >= buffer_size or nginx refuses the config.
+        proxy_buffer_size ${NH_PROXY_BUFFER_SIZE};
+        proxy_buffers 8 ${NH_PROXY_BUFFER_SIZE};
+        proxy_busy_buffers_size ${NH_PROXY_BUFFER_SIZE};
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
 

@@ -1,4 +1,4 @@
-/* NanoHive ABS - Early Boot Shim  v1.8.0
+/* NanoHive ABS - Early Boot Shim  v1.9.0
    Runs inline in <head>, right after core.js. Applies the resolved theme
    (baked defaults merged with the user's saved overrides) before first paint,
    and paints the cached home cinematic background as soon as <body> exists,
@@ -127,7 +127,13 @@
   // Logo: set the logo source URL early so core.js CSS has the mask ready
   // when enhancements.js adds the colorize class to the specific <a> tag.
   try {
-    var logoUrl = pick('logoUrl');
+    var logoUrl = String(pick('logoUrl') || '').trim();
+    // Only a real image source counts (#28): http(s), a data: image, or a
+    // same-origin path. Anything else (a password manager's autofilled
+    // username, a half-typed value) is treated as "no custom logo", otherwise
+    // the stock icon links get removed for a broken one and Chrome paints its
+    // fallback letter 'A' in the tab and on the installed-app shortcut.
+    if (!/^(https?:\/\/\S+|data:image\/[a-z0-9.+-]+[;,]\S*|\/[^/\s]\S*)$/i.test(logoUrl)) logoUrl = '';
     if (logoUrl) document.documentElement.style.setProperty('--nh-logo-url', 'url("' + logoUrl + '")');
   } catch (e) {}
 
@@ -142,8 +148,12 @@
       // REMOVE the stock icon links rather than renaming their rel: Firefox
       // keeps painting a renamed one, so a refresh landed back on the default.
       var links = document.querySelectorAll('link[rel*="icon"]');
+      // Remembered so enhancements.js can put them back when the custom logo
+      // is cleared (or turns out invalid) without a reload (#28).
+      var stock = window.__nhFavStock = window.__nhFavStock || [];
       for (var li = links.length - 1; li >= 0; li--) {
         if (links[li].id === 'nh-favicon') continue;
+        stock.unshift({ rel: links[li].rel, href: links[li].getAttribute('href'), type: links[li].getAttribute('type'), sizes: links[li].getAttribute('sizes') });
         if (links[li].parentNode) links[li].parentNode.removeChild(links[li]);
       }
       if (!document.getElementById('nh-favicon')) {

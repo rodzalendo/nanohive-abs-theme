@@ -1,4 +1,4 @@
-/* NanoHive ABS - Core Theme & Player  v3.137.0  (injected build) */
+/* NanoHive ABS - Core Theme & Player  v3.138.0  (injected build) */
 
 (function () {
   'use strict';
@@ -1451,6 +1451,9 @@ body.nh-ff-active #toolbar .nh-ff-nat { display: none !important; }
    spelled-out direction below. On one row the direction pill squeezed the name
    down to "Ra...", and the name is the part you actually read. */
 #nh-ff-pop .nh-ff-level { display: grid; grid-template-columns: 19px minmax(0, 1fr) auto auto; grid-template-areas: "num lbl up rm" "dir dir dir dir"; gap: 4px 7px; align-items: center; padding: 7px 0; }
+#nh-ff-pop .nh-ff-level-nat { grid-template-columns: 19px minmax(0, 1fr); grid-template-areas: "num lbl" "dir dir"; border-top: 1px dashed rgba(255,255,255,0.12); margin-top: 4px; }
+#nh-ff-pop .nh-ff-level-nat .nh-ff-lvl-lbl, #nh-ff-pop .nh-ff-level-nat .nh-ff-num { color: var(--nh-muted-2, #9a9085); }
+#nh-ff-pop .nh-ff-addmenu button.nh-ff-cur { color: var(--nh-amber, #e0c27a); }
 #nh-ff-pop .nh-ff-num { grid-area: num; display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px; border-radius: 6px; background: rgba(224,194,122,0.16); color: var(--nh-amber, #e0c27a); font-size: 0.68rem; font-weight: 700; }
 #nh-ff-pop .nh-ff-lvl-lbl { grid-area: lbl; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: var(--nh-text-1, #f4eee2); }
 #nh-ff-pop .nh-ff-move { grid-area: up; }

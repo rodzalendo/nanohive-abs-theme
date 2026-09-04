@@ -32,6 +32,12 @@ case "$NH_SOCIAL" in
   *) echo "ERROR: NH_SOCIAL must be 'true', 'false' or unset (got '$NH_SOCIAL')" >&2; exit 1 ;;
 esac
 
+# NH_PROXY_BUFFER_SIZE lands in three nginx directives verbatim (#32).
+case "$NH_PROXY_BUFFER_SIZE" in
+  [0-9]*[0-9]|[0-9]*[0-9][kKmM]) ;;
+  *) echo "ERROR: NH_PROXY_BUFFER_SIZE must be an nginx size like 16k or 32k (got '$NH_PROXY_BUFFER_SIZE')" >&2; exit 1 ;;
+esac
+
 # UI-saved server defaults live here; mount a volume at /data/nh to keep them
 # across container recreations. Seed an empty config so the SSI include in the
 # page head always yields valid JS.
