@@ -1,4 +1,4 @@
-/* NanoHive ABS - Book Details Redesign  v1.46.0  (injected build) */
+/* NanoHive ABS - Book Details Redesign  v1.52.0  (injected build) */
 
 (function () {
   'use strict';
@@ -511,6 +511,24 @@
     .nh-rt-text { color: #d8cfc2; font-size: 0.92rem; line-height: 1.5; margin: 1px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     .nh-rt-del { background: none; border: none; color: #8a8075; cursor: pointer; font-size: 0.76rem; text-decoration: underline; padding: 0; }
     .nh-rt-del:hover { color: #d98c7a; }
+    /* Community score line (#27) */
+    .nh-rt-cm { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin: 4px 0 2px; font-size: 0.86rem; color: var(--nh-muted-2, #9a9085); }
+    .nh-rt-cm .nh-rt-stars { font-size: 0.95rem; }
+    .nh-rt-cm-num { color: #d8cfc2; font-weight: 600; }
+    .nh-rt-cm-src { color: var(--nh-muted-2, #9a9085); text-decoration: none !important; border-bottom: 0 !important; }
+    .nh-rt-cm-src:hover { color: var(--nh-amber, #e0c27a); }
+    .nh-rt-cm { position: relative; }
+    .nh-rt-cm-q { flex: none; width: 17px; height: 17px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.05); color: #a99f8f; font-size: 0.7rem; line-height: 15px; text-align: center; padding: 0; cursor: pointer; font-family: var(--nh-sans, system-ui); }
+    .nh-rt-cm-q:hover { color: var(--nh-amber, #e0c27a); border-color: var(--nh-amber, #e0c27a); }
+    .nh-rt-cm-pop { position: absolute; left: 0; top: calc(100% + 8px); z-index: 60; min-width: 280px; max-width: 620px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; background: var(--nh-raised, #221e1a); box-shadow: 0 12px 32px rgba(0,0,0,0.45); font-size: 0.84rem; color: #d8cfc2; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+    .nh-rt-cm-pt { color: #f4eee2; font-weight: 600; }
+    .nh-rt-cm-pn { color: #a99f8f; font-size: 0.8rem; }
+    .nh-rt-cm-pick { width: 100%; max-height: 360px; overflow-y: auto; font-size: 0.84rem; color: #d8cfc2; }
+    .nh-rt-cm-pick > .nh-rt-cm-fix { display: inline-block; margin-bottom: 4px; }
+    .nh-rt-cm-fix { background: none; border: none; color: #8a8075; cursor: pointer; font-size: 0.78rem; text-decoration: none; padding: 0; font-family: inherit; }
+    .nh-rt-cm-fix:hover { color: var(--nh-amber, #e0c27a); }
+    .nh-rt-cm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+    .nh-rt-cm-use { padding: 3px 11px; font-size: 0.78rem; flex: none; }
     @media (max-width: 640px) {
       #nh-ratings { max-width: 100%; margin: -4px 0 24px; }
       #nh-rt-picker { font-size: 1.8rem; }
@@ -1168,6 +1186,9 @@
     if (!mine) main.appendChild(status);
     section.appendChild(main);
 
+    // --- Community score line (#27) ---
+    try { nhRtCmLine(section, T, me); } catch (e) {}
+
     // --- "Your rating:" line ---
     if (me && mine) {
       const yr = document.createElement('div');
@@ -1351,7 +1372,199 @@
       clearTimeout(nhRt.timer);
       nhRtRender();
       nhRtFetch(itemId);
+      nhRtCmFetch(itemId);
     }
+  }
+
+  // ---- Community score (#27): what readers elsewhere think ---------------
+  // One entry per book in /data/nh/community.json (Goodreads via abs-tract), fed by
+  // an admin's fetch run from the settings panel. Shown as a small line under
+  // the stars; admins can fix a wrong match right here.
+  const nhCm = { id: null, entry: null, pick: null, busy: false };
+  function nhRtCmFetch(itemId) {
+    if (nhCm.id === itemId) return;
+    if (window.__nhCmEnabled && !window.__nhCmEnabled()) { nhCm.id = itemId; nhCm.entry = null; return; }
+    nhCm.id = itemId; nhCm.entry = null; nhCm.pick = null;
+    fetch('/_nh/api/community?item=' + encodeURIComponent(itemId), { headers: nhRtHeaders(false), credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (nhCm.id !== itemId) return;
+        const e = j && j.items && j.items[itemId];
+        nhCm.entry = e || null;
+        if (nhCm.entry && typeof nhCm.entry.r === 'number') nhRtRender();
+        else nhRtCmAuto(itemId, e);
+      }).catch(() => {});
+  }
+  // No score yet: this visit looks it up and stores it, so the map fills in as
+  // people browse (the server accepts a gap-fill from any signed-in user, never
+  // an overwrite). A recorded miss is retried after a week.
+  const nhCmTried = {};
+  function nhRtCmAuto(itemId, existing, again) {
+    if ((!again && nhCmTried[itemId]) || typeof window.__nhCmLookup !== 'function') return;
+    if (existing && existing.manual) return;
+    if (existing && existing.miss && (Date.now() - (existing.at || 0)) < 7 * 86400000) return;
+    nhCmTried[itemId] = again ? 'retried' : true;
+    fetch('/api/items/' + itemId, { headers: nhRtHeaders(false) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((it) => {
+        const md = (it && it.media && it.media.metadata) || {};
+        const meta = { title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' };
+        if (!meta.title) return null;
+        return window.__nhCmLookup(meta);
+      })
+      .then((entry) => {
+        if (!entry || nhCm.id !== itemId) return;
+        const body = { set: {} };
+        body.set[itemId] = entry;
+        return fetch('/_nh/api/community', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
+          .then((r) => { if (r.ok && nhCm.id === itemId) { nhCm.entry = entry; if (typeof entry.r === 'number') nhRtRender(); } });
+      })
+      .catch(() => {
+        // Helper not set up: drop the admin's "find" button. Otherwise the
+        // source was down, not the book: one more try while the page is open.
+        if (window.__nhCmOff && window.__nhCmOff()) { if (nhCm.id === itemId) nhRtRender(); return; }
+        if (!again) setTimeout(() => { if (nhCm.id === itemId) nhRtCmAuto(itemId, existing, true); }, 20000);
+      });
+  }
+  function nhRtCmSrcName(src) { return 'Goodreads'; }
+  function nhRtCmFmtN(n) { try { return Number(n).toLocaleString(nhRtLang()); } catch (e) { return String(n); } }
+  function nhRtCmLine(section, T, me) {
+    if (window.__nhCmEnabled && !window.__nhCmEnabled()) return; // switched off by an admin
+    const e = nhCm.entry;
+    const has = !!(e && typeof e.r === 'number');
+    // Without the Goodreads helper there is nothing an admin could pick from.
+    const admin = !!(me && me.admin) && !(window.__nhCmOff && window.__nhCmOff());
+    if (!has && !admin) return;
+    const P = (window.__nhPanelT && window.__nhPanelT()) || {};
+    const line = document.createElement('div');
+    line.className = 'nh-rt-cm';
+    if (has) {
+      const num = document.createElement('span');
+      num.className = 'nh-rt-cm-num';
+      num.textContent = nhRtStarText(e.r);
+      line.appendChild(num);
+      line.appendChild(nhRtStarsEl(e.r, false));
+      const n = document.createElement('span');
+      n.className = 'nh-rt-cm-n';
+      n.textContent = nhRtCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords);
+      line.appendChild(n);
+      const a = document.createElement('a');
+      a.className = 'nh-rt-cm-src';
+      a.href = e.url || '#';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = nhRtCmSrcName(e.src) + ' ↗';
+      line.appendChild(a);
+    }
+    // A small "?" opens a popover right there: what Goodreads book this score
+    // belongs to, a link to it, and for admins the way to change the match.
+    const q = document.createElement('button');
+    q.type = 'button';
+    q.className = 'nh-rt-cm-q';
+    q.textContent = '?';
+    q.title = has ? (e.title || '') : (P.cmFind || 'Find a community rating…');
+    q.addEventListener('click', (ev) => { ev.stopPropagation(); nhCm.qOpen = !nhCm.qOpen; if (!nhCm.qOpen) nhCm.pick = null; nhRtRender(); });
+    line.appendChild(q);
+    if (nhCm.qOpen) line.appendChild(nhRtCmPop(P, T, e, has, admin));
+    section.appendChild(line);
+  }
+  function nhRtCmPop(P, T, e, has, admin) {
+    const pop = document.createElement('div');
+    pop.className = 'nh-rt-cm-pop';
+    pop.addEventListener('click', (ev) => ev.stopPropagation());
+    if (nhCm.pick) { // picking mode: the candidate list
+      pop.appendChild(nhRtCmPicker(P, T));
+      return pop;
+    }
+    if (has) {
+      const t = document.createElement('div');
+      t.className = 'nh-rt-cm-pt';
+      t.textContent = (e.title || '') + (e.by ? ' · ' + e.by : '');
+      pop.appendChild(t);
+      const n = document.createElement('div');
+      n.className = 'nh-rt-cm-pn';
+      n.textContent = nhRtStarText(e.r) + ' · ' + nhRtCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords);
+      pop.appendChild(n);
+      const a = document.createElement('a');
+      a.className = 'nh-rt-cm-src';
+      a.href = e.url || '#';
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = (P.cmOpen || 'Open on Goodreads') + ' ↗';
+      pop.appendChild(a);
+    } else {
+      const t = document.createElement('div');
+      t.className = 'nh-rt-cm-pn';
+      t.textContent = P.cmNone || 'No match';
+      pop.appendChild(t);
+    }
+    if (admin) {
+      const fix = document.createElement('button');
+      fix.type = 'button';
+      fix.className = 'nh-rt-btn nh-rt-cm-use';
+      fix.textContent = has ? (P.cmWrong || 'Wrong book?') : (P.cmFind || 'Find a community rating…');
+      fix.addEventListener('click', () => { nhCm.pick = 'loading'; nhRtRender(); nhRtCmSearch(); });
+      pop.appendChild(fix);
+    }
+    return pop;
+  }
+  // Click anywhere else, or Escape, closes the popover.
+  document.addEventListener('click', () => { if (nhCm.qOpen) { nhCm.qOpen = false; nhCm.pick = null; nhRtRender(); } });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && nhCm.qOpen) { nhCm.qOpen = false; nhCm.pick = null; nhRtRender(); } });
+  // Goodreads candidates for this book, for
+  // the admin to pick from. The matcher lives in enhancements.js.
+  function nhRtCmSearch() {
+    const id = nhCm.id;
+    if (!id || nhCm.busy || typeof window.__nhCmCandidates !== 'function') return;
+    nhCm.busy = true;
+    fetch('/api/items/' + id, { headers: nhRtHeaders(false) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((it) => {
+        const md = (it && it.media && it.media.metadata) || {};
+        return window.__nhCmCandidates({ title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' });
+      })
+      .then((list) => {
+        nhCm.busy = false;
+        if (nhCm.id !== id) return;
+        nhCm.pick = list || [];
+        nhRtRender();
+      })
+      .catch(() => { nhCm.busy = false; });
+  }
+  function nhRtCmSave(entry) {
+    const id = nhCm.id;
+    const body = { set: {} };
+    body.set[id] = entry;
+    return fetch('/_nh/api/community-admin', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
+      .then((r) => { if (r.ok && nhCm.id === id) { nhCm.entry = entry; nhCm.pick = null; nhRtRender(); } });
+  }
+  function nhRtCmPicker(P, T) {
+    const box = document.createElement('div');
+    box.className = 'nh-rt-cm-pick';
+    if (nhCm.pick === 'loading') { box.textContent = '…'; return box; }
+    const none = document.createElement('button');
+    none.type = 'button';
+    none.className = 'nh-rt-cm-fix';
+    none.textContent = P.cmNone || 'No match';
+    none.addEventListener('click', () => nhRtCmSave({ miss: 1, manual: 1, at: Date.now() }));
+    box.appendChild(none);
+    nhCm.pick.forEach((c) => {
+      const row = document.createElement('div');
+      row.className = 'nh-rt-cm-row';
+      const txt = document.createElement('span');
+      txt.textContent = nhRtCmSrcName(c.src) + ' · ' + c.title + (c.by ? ' · ' + c.by : '') + (c.year ? ' · ' + c.year : '') + (c.r != null ? ' · ' + nhRtStarText(c.r) + ' (' + nhRtCmFmtN(c.n) + ')' : '');
+      row.appendChild(txt);
+      if (c.r != null && c.n > 0) {
+        const use = document.createElement('button');
+        use.type = 'button';
+        use.className = 'nh-rt-btn nh-rt-cm-use';
+        use.textContent = P.cmUse || 'Use this';
+        use.addEventListener('click', () => nhRtCmSave({ r: Math.round(c.r * 100) / 100, n: c.n, src: c.src, key: c.key, url: c.url, title: c.title, by: c.by, manual: 1, at: Date.now() }));
+        row.appendChild(use);
+      }
+      box.appendChild(row);
+    });
+    return box;
   }
 
   // Series-page mount API: enhancements.js calls this every tick from the series

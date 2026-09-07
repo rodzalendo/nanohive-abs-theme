@@ -28,6 +28,10 @@ Web only (the mobile apps keep working through it, just unthemed).
 - Rate whole series too
 - Import your history from Goodreads, StoryGraph or Hardcover (dry run first, you confirm
   every match, and you can mark the matched books as finished in one click)
+- Goodreads ratings: every book page shows what Goodreads readers think (score and number of
+  votes), and you can sort and filter the library by it. Needs one small helper container,
+  three lines in your compose file (see Good to know). Wrong match? Fix it right on the book
+  page.
 - Hardcover sync: paste your API key and every rating you save lands on your Hardcover
   account too, or push the whole library at once
 - See who else is reading or finished a book, with their progress (great for book clubs)
@@ -136,6 +140,7 @@ Server Defaults), which also beat the env vars.
 | `NH_SHOW_RATINGS` | `true` | Book ratings |
 | `NH_SOCIAL` | *(empty)* | `false` disables every social feature; the admin Social card decides otherwise |
 | `NH_FOUC_BG` | `#181512` | Background before the theme loads, match your base theme |
+| `NH_GOODREADS_UPSTREAM` | *(empty)* | Address of the abs-tract helper for Goodreads community ratings, e.g. `http://abs-tract:5555/goodreads` (see Good to know) |
 | `NH_PROXY_BUFFER_SIZE` | `16k` | nginx upstream header buffer. Raise it if OIDC logins die with a 502 for users with many groups |
 
 Canvas colours for `NH_FOUC_BG`: `warm` `#181512` · `slate` `#111625` · `black` `#080808` ·
@@ -149,6 +154,38 @@ The container refuses to start on a malformed value instead of serving a half-br
 **Custom logo offline**: admins can upload one from the settings panel (Branding & Style),
 or drop `logo.png` into `/data/nh` and set the logo to `/_nh/logo.png`. Served from the
 volume, no internet needed.
+
+**Goodreads ratings** (community ratings): the "what readers elsewhere think" line, the
+Goodreads rating sort and its filter need one extra small container next to the theme that
+fetches the Goodreads numbers. Until it runs, the feature stays off and the settings card shows
+these same steps. Step by step:
+
+1. Add this to the same `docker-compose.yml` as the theme, under `services:`
+
+   ```yaml
+     abs-tract:
+       image: ghcr.io/rodzalendo/abs-tract-ratings:latest
+       restart: unless-stopped
+       expose:
+         - "5555"
+   ```
+
+2. `docker compose up -d`, then open Settings → Theme → Administration → Goodreads ratings.
+   The card looks for the helper by itself (it also checks the metadata providers you set up
+   in Audiobookshelf) and says "Goodreads: connected" once found. Running it some other way?
+   Paste its address into the card, or set `NH_GOODREADS_UPSTREAM` on the theme container.
+
+3. Book pages fill in by themselves as people browse. The small "?" next to a score shows
+   which Goodreads book it came from; admins can change the match right there. The switch
+   on the card turns the whole thing off for everyone.
+
+No account, no API key, nothing else to set up. The helper is
+[abs-tract](https://github.com/ahobsonsayers/abs-tract) (MIT) with a small patch that adds the
+rating numbers to its answers, built from `integrations/abs-tract` in this repo. If you already
+run abs-tract as an Audiobookshelf metadata provider, swap its image for this one: it does the
+same job plus ratings. Not running on Docker Compose? Any way of running that image and
+reaching it from the theme container works; `NH_GOODREADS_UPSTREAM` just needs its address
+without a trailing slash.
 
 **Importing ratings**: export from StoryGraph (Manage Your Data → Export), Goodreads
 (My Books → Import and export) or Hardcover (Account → Exports, or straight over the API with

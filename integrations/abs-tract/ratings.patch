@@ -1,0 +1,75 @@
+diff --git a/schema/openapi.yaml b/schema/openapi.yaml
+index 0ba7b68..a0c4761 100644
+--- a/schema/openapi.yaml
++++ b/schema/openapi.yaml
+@@ -121,6 +121,19 @@ components:
+           type: integer
+           format: int
+           description: Duration in seconds
++        goodreadsId:
++          type: string
++          description: Goodreads best-edition ID (Goodreads provider only)
++        goodreadsUrl:
++          type: string
++          description: Goodreads best-edition URL (Goodreads provider only)
++        goodreadsAverageRating:
++          type: number
++          format: double
++          description: Goodreads community average rating (Goodreads provider only)
++        goodreadsRatingsCount:
++          type: integer
++          description: Number of Goodreads community ratings (Goodreads provider only)
+ 
+     SeriesMetadata:
+       type: object
+diff --git a/server/book.go b/server/book.go
+index a907aa1..5567ef3 100644
+--- a/server/book.go
++++ b/server/book.go
+@@ -91,12 +91,31 @@ func goodreadsBookToBookMetadata(goodreadsBook goodreads.Book) BookMetadata {
+ 		series = append(series, seriesSingle)
+ 	}
+ 
++	var goodreadsAverageRating *float64
++	var goodreadsRatingsCount *int
++	if goodreadsBook.Work.RatingsCount > 0 {
++		goodreadsAverageRating = lo.ToPtr(goodreadsBook.Work.AverageRating())
++		goodreadsRatingsCount = lo.ToPtr(goodreadsBook.Work.RatingsCount)
++	}
++	var goodreadsId *string
++	var goodreadsUrl *string
++	if goodreadsBook.BestEdition.Id != "" {
++		goodreadsId = lo.ToPtr(goodreadsBook.BestEdition.Id)
++	}
++	if goodreadsBook.BestEdition.URL != "" {
++		goodreadsUrl = lo.ToPtr(goodreadsBook.BestEdition.URL)
++	}
++
+ 	return BookMetadata{
+ 		// Work Fields
+ 		Title:         goodreadsBook.BestEdition.Title(),
+ 		Subtitle:      subtitle,
+ 		Author:        author,
+ 		PublishedYear: publicationYear,
++		GoodreadsAverageRating: goodreadsAverageRating,
++		GoodreadsRatingsCount:   goodreadsRatingsCount,
++		GoodreadsId:             goodreadsId,
++		GoodreadsUrl:            goodreadsUrl,
+ 		// Edition Fields
+ 		Isbn:        goodreadsBook.BestEdition.ISBN,
+ 		Cover:       imageUrl,
+diff --git a/server/server.gen.go b/server/server.gen.go
+index ab1693e..17dbffb 100644
+--- a/server/server.gen.go
++++ b/server/server.gen.go
+@@ -51,6 +51,10 @@ type BookMetadata struct {
+ 	// Duration Duration in seconds
+ 	Duration      *int              `json:"duration,omitempty"`
+ 	Genres        *[]string         `json:"genres,omitempty"`
++	GoodreadsAverageRating *float64 `json:"goodreadsAverageRating,omitempty"`
++	GoodreadsId             *string  `json:"goodreadsId,omitempty"`
++	GoodreadsRatingsCount   *int     `json:"goodreadsRatingsCount,omitempty"`
++	GoodreadsUrl            *string  `json:"goodreadsUrl,omitempty"`
+ 	Isbn          *string           `json:"isbn,omitempty"`
+ 	Language      *string           `json:"language,omitempty"`
+ 	Narrator      *string           `json:"narrator,omitempty"`

@@ -19,6 +19,9 @@ map $http_x_forwarded_proto $nh_fwd_proto {
 # (load_module line added in the Dockerfile).
 js_path "/etc/nginx/njs/";
 js_import nh_ratings from nh-ratings.js;
+# Goodreads helper address (#27), resolved per request: the admin-saved value in
+# server-config.json beats the NH_GOODREADS_UPSTREAM env, so no restart is needed.
+js_set $nh_gr_upstream nh_ratings.grUpstream;
 
 # The theme is INLINED into the HTML shell, so a browser that heuristically caches
 # the shell keeps running an OLD theme build after a redeploy (stale until a hard
@@ -42,6 +45,7 @@ server {
     # (social, stats, progress) sees the assigned value - a per-location set
     # would leave it empty everywhere else.
     set $nh_social_env "${NH_SOCIAL}";
+    set $nh_gr_env "${NH_GOODREADS_UPSTREAM}";
 
     gzip on;
     gzip_comp_level 5;
@@ -297,6 +301,67 @@ server {
         client_max_body_size 64k;
         client_body_buffer_size 64k;
         js_content nh_ratings.progress;
+    }
+
+    # Community ratings (#27): one Goodreads score per book, filled in by
+    # browsers through the relay below, readable by every signed-in user
+    # (sort/filter + the book page line).
+    location = /_nh/api/community {
+        auth_request /_nh/api/whoami;
+        client_max_body_size 8k;
+        client_body_buffer_size 8k;
+        js_content nh_ratings.community;
+    }
+    location = /_nh/api/community-admin {
+        auth_request /_nh/admincheck;
+        set $nh_community_admin 1;
+        client_max_body_size 256k;
+        client_body_buffer_size 256k;
+        js_content nh_ratings.community;
+    }
+
+    # Goodreads numbers via abs-tract (#27): an OPTIONAL separate container the
+    # admin runs (see README). NH_GOODREADS_UPSTREAM is its /goodreads base,
+    # e.g. http://abs-tract:5555/goodreads, no trailing slash. Empty = not set
+    # up, and the 404 is how the theme knows. A variable proxy_pass with a URI
+    # part replaces the whole request URI, so the path is re-attached from the
+    # location capture and the query string by hand.
+    location ~ ^/_nh/gr/(?<nh_gr_path>.*)$ {
+        auth_request /_nh/api/whoami;
+        if ($nh_gr_upstream = "") { return 404; }
+        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+        resolver_timeout 5s;
+        proxy_pass $nh_gr_upstream/$nh_gr_path$is_args$args;
+        proxy_set_header Host $proxy_host;
+        proxy_ssl_server_name on;
+        proxy_set_header Authorization "";
+        proxy_set_header Cookie "";
+        proxy_set_header Accept-Encoding "";
+        proxy_read_timeout 40s;
+    }
+
+    # Admin-only discovery probe (#27): asks one candidate helper address the
+    # standard test question, so the settings card can find abs-tract by itself
+    # (ABS custom-provider list, compose service name, the host) and save it.
+    location = /_nh/gr-probe {
+        auth_request /_nh/admincheck;
+        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+        resolver_timeout 3s;
+        if ($arg_up !~ "^https?://[A-Za-z0-9._:-]+(/[A-Za-z0-9._/-]*)?$") { return 400; }
+        set $nh_gr_probe $arg_up;
+        proxy_pass $nh_gr_probe/search?query=Dune&author=Frank%20Herbert;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header Authorization "";
+        proxy_set_header Cookie "";
+        proxy_set_header Accept-Encoding "";
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 8s;
+        proxy_intercept_errors on;
+        error_page 502 504 = @nh_gr_nope;
+    }
+    location @nh_gr_nope {
+        default_type application/json;
+        return 503 '{"error":"no answer"}';
     }
 
     # Hardcover ratings sync (#26). The browser cannot call api.hardcover.app

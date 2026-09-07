@@ -18,13 +18,13 @@ services:
     volumes:
       # KEEP THIS. Everything the theme stores lives here: book ratings and reviews,
       # UI-saved server defaults, your uploaded logo, series covers, profile photos.
-      # Without it all of that is gone the next time the container is recreated —
+      # Without it all of that is gone the next time the container is recreated,
       # which is what pulling a new image does.
       - nh_theme_data:/data/nh
     environment:
       ABS_UPSTREAM: "http://audiobookshelf:80"
 
-      # Everything below is optional — these are the defaults every user sees on
+      # Everything below is optional, these are the defaults every user sees on
       # their first visit. They can change any of it in the in-app settings panel.
       #
       # NH_APP_NAME: "My Library"
@@ -40,6 +40,20 @@ services:
       # If you pick a base theme other than `warm`, set NH_FOUC_BG to its canvas
       # colour so the pre-paint background matches (see README).
       # NH_FOUC_BG: "#0b1618"
+      #
+      # Community ratings from Goodreads: uncomment this line AND the abs-tract
+      # service below. Without them the community ratings stay off.
+      # NH_GOODREADS_UPSTREAM: "http://abs-tract:5555/goodreads"
+
+  # Optional helper that fetches Goodreads numbers (see "Goodreads ratings" in
+  # the README). Nothing to configure, no account needed. Also works as an
+  # Audiobookshelf metadata provider: Settings -> Item Metadata Utils ->
+  # Custom Metadata Providers, URL http://abs-tract:5555/goodreads
+  # abs-tract:
+  #   image: ghcr.io/rodzalendo/abs-tract-ratings:latest
+  #   restart: unless-stopped
+  #   expose:
+  #     - "5555"
 
 # Then point your browser / Cloudflare tunnel / reverse proxy at
 # the abs-theme container (port 8080) instead of ABS directly.

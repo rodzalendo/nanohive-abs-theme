@@ -1,4 +1,4 @@
-/* NanoHive ABS - Server-wide Ratings API  v1.23.0  (nginx njs module)
+/* NanoHive ABS - Server-wide Ratings API  v1.27.0  (nginx njs module)
 
    A tiny JSON API that lets every user of this server rate books (stars +
    short review, Plex-style) and see everyone else's ratings. Runs entirely
@@ -1170,4 +1170,141 @@ function progress(r) {
   send(r, 200, { ok: true, reading: reading.length, done: done.length });
 }
 
-export default { handle, meta, avatar, stats, reports, dates, prefs, progress, social };
+/* ---- Community ratings (#27) --------------------------------------------
+   One "what everyone else thinks" score per book, Goodreads numbers fetched
+   by browsers through the /_nh/gr/ relay to the abs-tract helper and read by
+   everyone. Separate from NanoHive's own user ratings.
+
+     /data/nh/community.json
+     { "v": 1, "items": { "<libraryItemId>": {
+         "r": 4.05, "n": 127809, "src": "gr", "key": "43587154",
+         "url": "https://www.goodreads.com/book/show/43587154-jade-city", "title": "Jade City",
+         "by": "Frank Herbert", "at": 1757000000000, "manual": 1 } } }
+   A lookup that found nothing is stored as { "miss": 1, "at": ... } so a run
+   can skip it and a later run can retry it. */
+const COMMUNITY = '/data/nh/community.json';
+const COMMUNITY_MAX_BYTES = 6 * 1024 * 1024;
+const COMMUNITY_BATCH = 500;
+
+function readCommunity() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(COMMUNITY));
+    if (parsed && typeof parsed === 'object' && parsed.items && typeof parsed.items === 'object') {
+      // Goodreads only since v2.6.0: scores from the short-lived Open Library
+      // phase are dropped on read, so pages re-fetch them from Goodreads.
+      Object.keys(parsed.items).forEach(function (id) {
+        var e = parsed.items[id];
+        if (e && typeof e.r === 'number' && e.src !== 'gr') delete parsed.items[id];
+      });
+      return parsed;
+    }
+  } catch (e) {}
+  return { v: 1, items: {} };
+}
+
+function writeCommunity(store) {
+  const tmp = COMMUNITY + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(store));
+  fs.renameSync(tmp, COMMUNITY);
+}
+
+function cleanCommunityEntry(v) {
+  if (!v || typeof v !== 'object') return null;
+  const out = { at: Number(v.at) || Date.now() };
+  if (v.miss) { out.miss = 1; return out; }
+  const rating = Number(v.r), count = Number(v.n);
+  if (!(rating >= 0 && rating <= 5) || !(count >= 0) || Math.floor(count) !== count) return null;
+  out.r = Math.round(rating * 100) / 100;
+  out.n = count;
+  out.src = 'gr';
+  if (v.key != null) out.key = String(v.key).slice(0, 120);
+  if (v.url != null && /^https:\/\/(www\.)?goodreads\.com\//.test(String(v.url))) out.url = String(v.url).slice(0, 300);
+  if (v.title != null) out.title = String(v.title).slice(0, 200);
+  if (v.by != null) out.by = String(v.by).slice(0, 200);
+  if (v.manual) out.manual = 1;
+  return out;
+}
+
+function community(r) {
+  const user = whoami(r);
+  if (!user) return send(r, 401, { error: 'not authenticated' });
+
+  if (r.method === 'GET') {
+    const store = readCommunity();
+    const item = r.args && r.args.item;
+    if (item) { // the book page wants one entry, not the whole map
+      const one = {};
+      if (store.items[item]) one[item] = store.items[item];
+      return send(r, 200, { v: 1, items: one });
+    }
+    return send(r, 200, store);
+  }
+
+  if (r.method !== 'POST') {
+    r.headersOut['Allow'] = 'GET, POST';
+    return send(r, 405, { error: 'method not allowed' });
+  }
+  // Admin-ness comes from nginx's auth_request against ABS /api/users on the
+  // admin twin; the JWT's type claim is not trusted for this.
+  const isAdmin = r.variables.nh_community_admin === '1';
+
+  let body;
+  try { body = JSON.parse(r.requestText || '{}'); } catch (e) { return send(r, 400, { error: 'bad json' }); }
+  if (!body || typeof body !== 'object') return send(r, 400, { error: 'bad body' });
+
+  // Any signed-in user may FILL a gap: a book page that finds no entry looks
+  // the score up itself and stores it, so the map grows as people browse. One
+  // item per call, never over an existing score or an admin's manual pick, and
+  // the entry is validated like everything else. Admins fix mistakes.
+  if (!isAdmin) {
+    const ids = body.set && typeof body.set === 'object' ? Object.keys(body.set) : [];
+    if (body.clear || body.del || ids.length !== 1 || !ITEM_ID_RE.test(ids[0])) return send(r, 403, { error: 'admin only' });
+    const store = readCommunity();
+    const cur = store.items[ids[0]];
+    if (cur && (cur.manual || typeof cur.r === 'number')) return send(r, 409, { error: 'already set' });
+    const entry = cleanCommunityEntry(body.set[ids[0]]);
+    if (!entry) return send(r, 400, { error: 'bad entry' });
+    delete entry.manual;
+    store.items[ids[0]] = entry;
+    if (JSON.stringify(store).length > COMMUNITY_MAX_BYTES) return send(r, 400, { error: 'store too large' });
+    try { writeCommunity(store); } catch (e) { return send(r, 500, { error: 'write failed' }); }
+    return send(r, 200, { ok: true, set: 1 });
+  }
+
+  const store = body.clear === true ? { v: 1, items: {} } : readCommunity();
+  let set = 0, del = 0, rejected = 0;
+  if (Array.isArray(body.del)) {
+    body.del.slice(0, COMMUNITY_BATCH).forEach(function (id) {
+      if (ITEM_ID_RE.test(String(id)) && store.items[id]) { delete store.items[id]; del++; }
+    });
+  }
+  if (body.set && typeof body.set === 'object') {
+    const ids = Object.keys(body.set).slice(0, COMMUNITY_BATCH);
+    ids.forEach(function (id) {
+      if (!ITEM_ID_RE.test(id)) { rejected++; return; }
+      const entry = cleanCommunityEntry(body.set[id]);
+      if (!entry) { rejected++; return; }
+      store.items[id] = entry;
+      set++;
+    });
+  }
+  const encoded = JSON.stringify(store);
+  if (encoded.length > COMMUNITY_MAX_BYTES) return send(r, 400, { error: 'store too large' });
+  try { writeCommunity(store); } catch (e) { return send(r, 500, { error: 'write failed' }); }
+  send(r, 200, { ok: true, set: set, del: del, rejected: rejected, total: Object.keys(store.items).length });
+}
+
+/* Goodreads helper address (#27), evaluated by nginx per request (js_set):
+   the admin-saved goodreadsUrl in server-config.json wins, then the
+   NH_GOODREADS_UPSTREAM env, else empty = not set up (the relay answers 404). */
+function grUpstream(r) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync('/data/nh/server-config.json'));
+    const u = String((cfg && cfg.goodreadsUrl) || '').trim().replace(/\/+$/, '');
+    if (/^https?:\/\/[^\s"'<>]+$/.test(u)) return u;
+  } catch (e) {}
+  const env = String((r.variables && r.variables.nh_gr_env) || '').trim().replace(/\/+$/, '');
+  return /^https?:\/\//.test(env) ? env : '';
+}
+
+export default { handle, meta, avatar, stats, reports, dates, prefs, progress, social, community, grUpstream };

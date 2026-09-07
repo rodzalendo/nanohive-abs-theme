@@ -1,4 +1,4 @@
-/* NanoHive ABS - Core Theme & Player  v3.138.0  (injected build) */
+/* NanoHive ABS - Core Theme & Player  v3.139.0  (injected build) */
 
 (function () {
   'use strict';
@@ -1393,7 +1393,7 @@ html.nh-covers-std #nh-series-header .nh-sh-cover { aspect-ratio: 1 / 1.6; }
 #toolbar .nh-lf-hasico > .truncate, #toolbar .nh-lf-hasico > .nh-lf-lbl { flex: 1 1 auto; min-width: 0; }
 /* value rows carry counts; keep the check slot readable for "2↓" badges */
 .nh-lf-mi { padding-right: 34px !important; }
-#toolbar .nh-lf-count { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; margin-right: 4px; border: 1px solid rgba(255,255,255,0.15); border-radius: 9px; background: rgba(255,255,255,0.06); font-size: 0.75rem; color: var(--nh-text-2, #cfc6b8); font-family: var(--nh-sans, system-ui); white-space: nowrap; }
+#toolbar .nh-lf-count { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 12px; margin-right: 4px; border: 1px solid rgba(255,255,255,0.15); border-radius: 9px; background: rgba(255,255,255,0.06); font-size: 0.75rem; color: var(--nh-text-2, #cfc6b8); font-family: var(--nh-sans, system-ui); white-space: nowrap; }
 #toolbar .nh-lf-clearx { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-right: 4px; border: 1px solid rgba(255,255,255,0.15); border-radius: 9px; background: rgba(255,255,255,0.06); font-size: 0.8rem; color: var(--nh-text-2, #cfc6b8); font-family: var(--nh-sans, system-ui); cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
 #toolbar .nh-lf-clearx:hover { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.3); }
 
@@ -1424,7 +1424,7 @@ html.nh-covers-std #nh-series-header .nh-sh-cover { aspect-ratio: 1 / 1.6; }
    removed: Vue still owns that DOM, so modernFilters:false brings them straight
    back with nothing to rebuild. (No backticks in this file - see the header.) */
 body.nh-ff-active #toolbar .nh-ff-nat { display: none !important; }
-#toolbar #nh-ff-btn { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px; margin-right: 6px; border: 1px solid rgba(255,255,255,0.15); border-radius: 9px; background: rgba(255,255,255,0.06); font-family: var(--nh-sans, system-ui); font-size: 0.78rem; color: var(--nh-text-2, #cfc6b8); cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+#toolbar #nh-ff-btn { display: inline-flex; align-items: center; gap: 7px; height: 2.25rem; padding: 0 12px; margin-right: 6px; border: 1px solid rgba(255,255,255,0.15); border-radius: 9px; background: rgba(255,255,255,0.06); font-family: var(--nh-sans, system-ui); font-size: 0.78rem; color: var(--nh-text-2, #cfc6b8); cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s, border-color 0.15s; }
 #toolbar #nh-ff-btn:hover { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.3); }
 #toolbar #nh-ff-btn.nh-ff-live { border-color: var(--nh-amber, #e0c27a); color: var(--nh-text-1, #f4eee2); }
 #toolbar #nh-ff-btn svg { flex: none; opacity: 0.85; }
