@@ -1,4 +1,4 @@
-/* NanoHive ABS - Book Details Redesign  v1.56.0  (injected build) */
+/* NanoHive ABS - Book Details Redesign  v1.57.0  (injected build) */
 
 (function () {
   'use strict';
@@ -536,6 +536,7 @@
     .nh-rt-cm-fix:hover { color: var(--nh-amber, #e0c27a); }
     .nh-rt-cm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid rgba(255,255,255,0.05); }
     .nh-rt-cm-use { padding: 3px 11px; font-size: 0.78rem; flex: none; }
+    .nh-rt-cm-novotes { flex: none; font-size: 0.74rem; color: #7d746a; font-style: italic; white-space: nowrap; }
     @media (max-width: 640px) {
       #nh-ratings { max-width: 100%; margin: -4px 0 24px; }
       #nh-rt-picker { font-size: 1.8rem; }
@@ -1603,6 +1604,13 @@
         use.textContent = P.cmUse || 'Use this';
         use.addEventListener('click', () => nhRtCmSave({ r: Math.round(c.r * 100) / 100, n: c.n, src: c.src, key: c.key, url: c.url, title: c.title, by: c.by, manual: 1, at: Date.now() }));
         row.appendChild(use);
+      } else {
+        // Nobody on Goodreads has rated this edition, so there is no score to
+        // take; say so rather than leave a blank where the button would be.
+        const none = document.createElement('span');
+        none.className = 'nh-rt-cm-novotes';
+        none.textContent = P.cmNoVotes || 'no ratings yet';
+        row.appendChild(none);
       }
       box.appendChild(row);
     });
