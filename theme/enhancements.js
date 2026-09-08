@@ -1,4 +1,4 @@
-/* NanoHive ABS - JS Enhancements  v6.235.0  (injected build) */
+/* NanoHive ABS - JS Enhancements  v6.236.0  (injected build) */
 
 (function () {
   'use strict';
@@ -14234,7 +14234,7 @@
   // at-a-glance "what am I running" readout. Restore it and add the theme version.
   // Bump NH_THEME_VERSION on each release (the composite THEME_VERSION from NH_CONFIG is
   // shown on hover for exact per-file versions).
-  const NH_THEME_VERSION = 'v2.6.0';
+  const NH_THEME_VERSION = 'v2.6.4';
   // The RELEASES LIST, not this version's own tag. Linking to
   // /releases/tag/<version> looked tidier, but it 404s for any build running
   // ahead of its release, which is every staging build, and any nightly. The
