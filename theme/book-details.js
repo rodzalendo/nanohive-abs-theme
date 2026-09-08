@@ -1,4 +1,4 @@
-/* NanoHive ABS - Book Details Redesign  v1.55.0  (injected build) */
+/* NanoHive ABS - Book Details Redesign  v1.56.0  (injected build) */
 
 (function () {
   'use strict';
@@ -517,10 +517,16 @@
     .nh-rt-cm-num { color: #d8cfc2; font-weight: 600; }
     .nh-rt-cm-src { color: var(--nh-muted-2, #9a9085); text-decoration: none !important; border-bottom: 0 !important; }
     .nh-rt-cm-src:hover { color: var(--nh-amber, #e0c27a); }
-    .nh-rt-cm { position: relative; }
+    /* The popover must sit above the page sections below it (their headings
+       carry their own stacking), hence the isolated, high z-index here. */
+    .nh-rt-cm { position: relative; z-index: 30; isolation: isolate; }
+    .nh-rt-cm:has(.nh-rt-cm-pop) { z-index: 3000; }
+    /* #nh-ratings itself is a z:10 layer and the page sections below it are z:25
+       (Audio Tracks sat on top of the list, #34); lift the block while the box is open. */
+    #nh-ratings:has(.nh-rt-cm-pop) { z-index: 60; }
     .nh-rt-cm-q { flex: none; width: 17px; height: 17px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.05); color: #a99f8f; font-size: 0.7rem; line-height: 15px; text-align: center; padding: 0; cursor: pointer; font-family: var(--nh-sans, system-ui); }
     .nh-rt-cm-q:hover { color: var(--nh-amber, #e0c27a); border-color: var(--nh-amber, #e0c27a); }
-    .nh-rt-cm-pop { position: absolute; left: 0; top: calc(100% + 8px); z-index: 60; min-width: 280px; max-width: 620px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; background: var(--nh-raised, #221e1a); box-shadow: 0 12px 32px rgba(0,0,0,0.45); font-size: 0.84rem; color: #d8cfc2; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+    .nh-rt-cm-pop { position: absolute; left: 0; top: calc(100% + 8px); z-index: 3000; min-width: 280px; max-width: 620px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; background: var(--nh-raised, #221e1a); box-shadow: 0 12px 32px rgba(0,0,0,0.45); font-size: 0.84rem; color: #d8cfc2; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
     .nh-rt-cm-pt { color: #f4eee2; font-weight: 600; }
     .nh-rt-cm-prow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
     .nh-rt-cm-pn { color: #a99f8f; font-size: 0.8rem; }
