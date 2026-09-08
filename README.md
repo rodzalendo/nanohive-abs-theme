@@ -178,7 +178,9 @@ these same steps. Step by step:
 3. Book pages fill in by themselves as people browse, or tick some libraries on the card and
    press "Scan for ratings" to do them all in one go (leave the tab open, it takes a while).
    The small "?" next to a score shows which Goodreads book it came from; admins can change
-   the match right there. The switch on the card turns the whole thing off for everyone.
+   the match right there, type their own search text, or refresh the numbers. The same line
+   sits in Audiobookshelf's Edit details window, so you can fix matches book after book with
+   its Next arrow. The switch on the card turns the whole thing off for everyone.
 
 No account, no API key, nothing else to set up. The helper is
 [abs-tract](https://github.com/ahobsonsayers/abs-tract) (MIT) with a small patch that adds the

@@ -1,4 +1,4 @@
-/* NanoHive ABS - Book Details Redesign  v1.57.0  (injected build) */
+/* NanoHive ABS - Book Details Redesign  v1.58.0  (injected build) */
 
 (function () {
   'use strict';
@@ -536,6 +536,13 @@
     .nh-rt-cm-fix:hover { color: var(--nh-amber, #e0c27a); }
     .nh-rt-cm-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid rgba(255,255,255,0.05); }
     .nh-rt-cm-use { padding: 3px 11px; font-size: 0.78rem; flex: none; }
+    .nh-rt-cm-sf { display: flex; gap: 6px; margin-bottom: 6px; }
+    .nh-rt-cm-si { flex: 1 1 auto; min-width: 0; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 5px 9px; color: #f4eee2; font-size: 0.84rem; outline: none; }
+    .nh-rt-cm-si:focus { border-color: var(--nh-amber, #e0c27a); }
+    /* inside the Edit details window's header (which is pointer-events:none) */
+    #nh-em-cm { position: absolute; top: 3.4rem; left: 1rem; z-index: 40; pointer-events: auto; max-width: 66%; }
+    #nh-em-cm .nh-rt-cm { font-size: 0.8rem; }
+    #nh-em-cm .nh-rt-cm-pop { z-index: 3000; min-width: 520px; max-width: min(720px, 90vw); }
     .nh-rt-cm-novotes { flex: none; font-size: 0.74rem; color: #7d746a; font-style: italic; white-space: nowrap; }
     @media (max-width: 640px) {
       #nh-ratings { max-width: 100%; margin: -4px 0 24px; }
@@ -1384,238 +1391,200 @@
     }
   }
 
-  // ---- Community score (#27): what readers elsewhere think ---------------
-  // One entry per book in /data/nh/community.json (Goodreads via abs-tract), fed by
-  // an admin's fetch run from the settings panel. Shown as a small line under
-  // the stars; admins can fix a wrong match right here.
-  const nhCm = { id: null, entry: null, pick: null, busy: false };
-  function nhRtCmFetch(itemId) {
-    if (nhCm.id === itemId) return;
-    if (window.__nhCmEnabled && !window.__nhCmEnabled()) { nhCm.id = itemId; nhCm.entry = null; return; }
-    nhCm.id = itemId; nhCm.entry = null; nhCm.pick = null;
-    fetch('/_nh/api/community?item=' + encodeURIComponent(itemId), { headers: nhRtHeaders(false), credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (nhCm.id !== itemId) return;
-        const e = j && j.items && j.items[itemId];
-        nhCm.entry = e || null;
-        if (nhCm.entry && typeof nhCm.entry.r === 'number') nhRtRender();
-        else nhRtCmAuto(itemId, e);
-      }).catch(() => {});
-  }
-  // No score yet: this visit looks it up and stores it, so the map fills in as
-  // people browse (the server accepts a gap-fill from any signed-in user, never
-  // an overwrite). A recorded miss is retried after six hours: Goodreads and
-  // the helper have bad moments, and a miss from one of them must not stick.
+  // ---- Community score (#27): what Goodreads readers think -----------------
+  // One entry per book in /data/nh/community.json, filled in as pages are
+  // visited (any signed-in user may fill a gap, never overwrite). The widget is
+  // a small factory: the book page owns one, the Edit details window another
+  // (same code, own state, own host), so an admin can fix matches book after
+  // book with the window's Next arrow.
   const nhCmTried = {};
-  function nhRtCmAuto(itemId, existing, again) {
-    if ((!again && nhCmTried[itemId]) || typeof window.__nhCmLookup !== 'function') return;
-    if (existing && existing.manual) return;
-    if (existing && existing.miss && (Date.now() - (existing.at || 0)) < 6 * 3600000) return;
-    nhCmTried[itemId] = again ? 'retried' : true;
-    fetch('/api/items/' + itemId, { headers: nhRtHeaders(false) })
+  function nhCmFmtN(n) { try { return Number(n).toLocaleString(nhRtLang()); } catch (e) { return String(n); } }
+  function nhCmMeta(itemId) {
+    return fetch('/api/items/' + itemId, { headers: nhRtHeaders(false) })
       .then((r) => (r.ok ? r.json() : null))
-      .then((it) => {
-        const md = (it && it.media && it.media.metadata) || {};
-        const meta = { title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' };
-        if (!meta.title) return null;
-        return window.__nhCmLookup(meta);
-      })
-      .then((entry) => {
-        if (!entry || nhCm.id !== itemId) return;
-        const body = { set: {} };
-        body.set[itemId] = entry;
-        return fetch('/_nh/api/community', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
-          .then((r) => { if (r.ok && nhCm.id === itemId) { nhCm.entry = entry; if (typeof entry.r === 'number') nhRtRender(); } });
-      })
-      .catch(() => {
-        // Helper not set up: drop the admin's "find" button. Otherwise the
-        // source was down, not the book: one more try while the page is open.
-        if (window.__nhCmOff && window.__nhCmOff()) { if (nhCm.id === itemId) nhRtRender(); return; }
-        if (!again) setTimeout(() => { if (nhCm.id === itemId) nhRtCmAuto(itemId, existing, true); }, 20000);
-      });
+      .then((it) => { const md = (it && it.media && it.media.metadata) || {}; return { title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' }; });
   }
-  function nhRtCmSrcName(src) { return 'Goodreads'; }
-  function nhRtCmFmtN(n) { try { return Number(n).toLocaleString(nhRtLang()); } catch (e) { return String(n); } }
-  function nhRtCmLine(section, T, me) {
-    if (window.__nhCmEnabled && !window.__nhCmEnabled()) return; // switched off by an admin
-    const e = nhCm.entry;
-    const has = !!(e && typeof e.r === 'number');
-    // Without the Goodreads helper there is nothing an admin could pick from.
-    const admin = !!(me && me.admin) && !(window.__nhCmOff && window.__nhCmOff());
-    if (!has && !admin) return;
-    const P = (window.__nhPanelT && window.__nhPanelT()) || {};
-    const line = document.createElement('div');
-    line.className = 'nh-rt-cm';
-    if (has) {
-      const num = document.createElement('span');
-      num.className = 'nh-rt-cm-num';
-      num.textContent = nhRtStarText(e.r);
-      line.appendChild(num);
-      line.appendChild(nhRtStarsEl(e.r, false));
-      const n = document.createElement('span');
-      n.className = 'nh-rt-cm-n';
-      n.textContent = nhRtCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords);
-      line.appendChild(n);
-      const a = document.createElement('a');
-      a.className = 'nh-rt-cm-src';
-      a.href = e.url || '#';
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = nhRtCmSrcName(e.src) + ' ↗';
-      line.appendChild(a);
-    }
-    // A small "?" opens a popover right there: what Goodreads book this score
-    // belongs to, a link to it, and for admins the way to change the match.
-    const q = document.createElement('button');
-    q.type = 'button';
-    q.className = 'nh-rt-cm-q';
-    q.textContent = '?';
-    q.title = has ? (e.title || '') : (P.cmFind || 'Find a community rating…');
-    q.addEventListener('click', (ev) => { ev.stopPropagation(); nhCm.qOpen = !nhCm.qOpen; if (!nhCm.qOpen) nhCm.pick = null; nhRtRender(); });
-    line.appendChild(q);
-    if (nhCm.qOpen) line.appendChild(nhRtCmPop(P, T, e, has, admin));
-    section.appendChild(line);
-  }
-  function nhRtCmPop(P, T, e, has, admin) {
-    const pop = document.createElement('div');
-    pop.className = 'nh-rt-cm-pop';
-    pop.addEventListener('click', (ev) => ev.stopPropagation());
-    if (nhCm.pick) { // picking mode: the candidate list
-      pop.appendChild(nhRtCmPicker(P, T));
-      return pop;
-    }
-    if (has) {
-      const t = document.createElement('div');
-      t.className = 'nh-rt-cm-pt';
-      t.textContent = (e.title || '') + (e.by ? ' · ' + e.by : '');
-      pop.appendChild(t);
-      const n = document.createElement('div');
-      n.className = 'nh-rt-cm-pn';
-      n.textContent = nhRtStarText(e.r) + ' · ' + nhRtCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords);
-      pop.appendChild(n);
-      const a = document.createElement('a');
-      a.className = 'nh-rt-cm-src';
-      a.href = e.url || '#';
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.textContent = (P.cmOpen || 'Open on Goodreads') + ' ↗';
-      pop.appendChild(a);
-    } else {
-      const t = document.createElement('div');
-      t.className = 'nh-rt-cm-pn';
-      t.textContent = P.cmNone || 'No match';
-      pop.appendChild(t);
-    }
-    if (admin) {
-      const row = document.createElement('div');
-      row.className = 'nh-rt-cm-prow';
+  function nhCmWidget(render) {
+    const W = { id: null, entry: null, pick: null, busy: false, qOpen: false, refreshing: false, query: '' };
+    const P = () => (window.__nhPanelT && window.__nhPanelT()) || {};
+    W.setItem = (itemId) => {
+      if (W.id === itemId) return;
+      W.id = itemId; W.entry = null; W.pick = null; W.qOpen = false; W.query = '';
+      if (window.__nhCmEnabled && !window.__nhCmEnabled()) return;
+      fetch('/_nh/api/community?item=' + encodeURIComponent(itemId), { headers: nhRtHeaders(false), credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (W.id !== itemId) return;
+          const e = j && j.items && j.items[itemId];
+          W.entry = e || null;
+          if (W.entry && typeof W.entry.r === 'number') render();
+          else W.auto(itemId, e);
+        }).catch(() => {});
+    };
+    // No score yet: look it up now and store it. A recorded miss is retried
+    // after six hours (Goodreads and the helper have bad moments).
+    W.auto = (itemId, existing, again) => {
+      if ((!again && nhCmTried[itemId]) || typeof window.__nhCmLookup !== 'function') return;
+      if (existing && existing.manual) return;
+      if (existing && existing.miss && (Date.now() - (existing.at || 0)) < 6 * 3600000) return;
+      nhCmTried[itemId] = again ? 'retried' : true;
+      nhCmMeta(itemId)
+        .then((meta) => (meta.title ? window.__nhCmLookup(meta) : null))
+        .then((entry) => {
+          if (!entry || W.id !== itemId) return;
+          const body = { set: {} };
+          body.set[itemId] = entry;
+          return fetch('/_nh/api/community', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
+            .then((r) => { if (r.ok && W.id === itemId) { W.entry = entry; if (typeof entry.r === 'number') render(); } });
+        })
+        .catch(() => {
+          if (window.__nhCmOff && window.__nhCmOff()) { if (W.id === itemId) render(); return; }
+          if (!again) setTimeout(() => { if (W.id === itemId) W.auto(itemId, existing, true); }, 20000);
+        });
+    };
+    W.line = (host, T, me) => {
+      if (window.__nhCmEnabled && !window.__nhCmEnabled()) return false;
+      const e = W.entry;
+      const has = !!(e && typeof e.r === 'number');
+      const admin = !!(me && me.admin) && !(window.__nhCmOff && window.__nhCmOff());
+      if (!has && !admin) return false;
+      const line = document.createElement('div');
+      line.className = 'nh-rt-cm';
       if (has) {
-        // Same Goodreads book, fresh numbers (votes move every day).
-        const rf = document.createElement('button');
-        rf.type = 'button';
-        rf.className = 'nh-rt-btn nh-rt-cm-use';
-        rf.textContent = nhCm.refreshing ? '…' : (P.cmRefresh || 'Refresh');
-        rf.disabled = !!nhCm.refreshing;
-        rf.addEventListener('click', () => nhRtCmRefresh(e));
-        row.appendChild(rf);
+        const num = document.createElement('span'); num.className = 'nh-rt-cm-num'; num.textContent = nhRtStarText(e.r); line.appendChild(num);
+        line.appendChild(nhRtStarsEl(e.r, false));
+        const n = document.createElement('span'); n.className = 'nh-rt-cm-n'; n.textContent = nhCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords); line.appendChild(n);
+        const a = document.createElement('a'); a.className = 'nh-rt-cm-src'; a.href = e.url || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Goodreads ↗'; line.appendChild(a);
       }
-      const fix = document.createElement('button');
-      fix.type = 'button';
-      fix.className = 'nh-rt-btn nh-rt-cm-use';
-      fix.textContent = has ? (P.cmWrong || 'Wrong book?') : (P.cmFind || 'Find a community rating…');
-      fix.addEventListener('click', () => { nhCm.pick = 'loading'; nhRtRender(); nhRtCmSearch(); });
-      row.appendChild(fix);
-      pop.appendChild(row);
-    }
-    return pop;
-  }
-  // Re-read the numbers for the book already matched: find the same Goodreads
-  // id among today's candidates and keep everything else (manual pick included).
-  function nhRtCmRefresh(e) {
-    const id = nhCm.id;
-    if (!id || nhCm.refreshing || typeof window.__nhCmCandidates !== 'function') return;
-    nhCm.refreshing = true; nhRtRender();
-    fetch('/api/items/' + id, { headers: nhRtHeaders(false) })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((it) => {
-        const md = (it && it.media && it.media.metadata) || {};
-        return window.__nhCmCandidates({ title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' });
-      })
-      .then((list) => {
-        const same = (list || []).find((c) => c.key && c.key === e.key && c.r != null && c.n > 0);
-        if (!same) return null;
-        const fresh = Object.assign({}, e, { r: Math.round(same.r * 100) / 100, n: same.n, at: Date.now() });
-        return nhRtCmSave(fresh, true);
-      })
-      .catch(() => {})
-      .then(() => { nhCm.refreshing = false; nhRtRender(); });
-  }
-  // Click anywhere else, or Escape, closes the popover.
-  document.addEventListener('click', () => { if (nhCm.qOpen) { nhCm.qOpen = false; nhCm.pick = null; nhRtRender(); } });
-  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && nhCm.qOpen) { nhCm.qOpen = false; nhCm.pick = null; nhRtRender(); } });
-  // Goodreads candidates for this book, for
-  // the admin to pick from. The matcher lives in enhancements.js.
-  function nhRtCmSearch() {
-    const id = nhCm.id;
-    if (!id || nhCm.busy || typeof window.__nhCmCandidates !== 'function') return;
-    nhCm.busy = true;
-    fetch('/api/items/' + id, { headers: nhRtHeaders(false) })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((it) => {
-        const md = (it && it.media && it.media.metadata) || {};
-        return window.__nhCmCandidates({ title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' });
-      })
-      .then((list) => {
-        nhCm.busy = false;
-        if (nhCm.id !== id) return;
-        nhCm.pick = list || [];
-        nhRtRender();
-      })
-      .catch(() => { nhCm.busy = false; });
-  }
-  function nhRtCmSave(entry, keepOpen) {
-    const id = nhCm.id;
-    const body = { set: {} };
-    body.set[id] = entry;
-    return fetch('/_nh/api/community-admin', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
-      .then((r) => { if (r.ok && nhCm.id === id) { nhCm.entry = entry; nhCm.pick = null; if (!keepOpen) nhCm.qOpen = false; nhRtRender(); } });
-  }
-  function nhRtCmPicker(P, T) {
-    const box = document.createElement('div');
-    box.className = 'nh-rt-cm-pick';
-    if (nhCm.pick === 'loading') { box.textContent = '…'; return box; }
-    const none = document.createElement('button');
-    none.type = 'button';
-    none.className = 'nh-rt-cm-fix';
-    none.textContent = P.cmNone || 'No match';
-    none.addEventListener('click', () => nhRtCmSave({ miss: 1, manual: 1, at: Date.now() }));
-    box.appendChild(none);
-    nhCm.pick.forEach((c) => {
-      const row = document.createElement('div');
-      row.className = 'nh-rt-cm-row';
-      const txt = document.createElement('span');
-      txt.textContent = nhRtCmSrcName(c.src) + ' · ' + c.title + (c.by ? ' · ' + c.by : '') + (c.year ? ' · ' + c.year : '') + (c.r != null ? ' · ' + nhRtStarText(c.r) + ' (' + nhRtCmFmtN(c.n) + ')' : '');
-      row.appendChild(txt);
-      if (c.r != null && c.n > 0) {
-        const use = document.createElement('button');
-        use.type = 'button';
-        use.className = 'nh-rt-btn nh-rt-cm-use';
-        use.textContent = P.cmUse || 'Use this';
-        use.addEventListener('click', () => nhRtCmSave({ r: Math.round(c.r * 100) / 100, n: c.n, src: c.src, key: c.key, url: c.url, title: c.title, by: c.by, manual: 1, at: Date.now() }));
-        row.appendChild(use);
+      const q = document.createElement('button');
+      q.type = 'button'; q.className = 'nh-rt-cm-q'; q.textContent = '?';
+      q.title = has ? (e.title || '') : (P().cmFind || 'Find a community rating…');
+      q.addEventListener('click', (ev) => { ev.stopPropagation(); W.qOpen = !W.qOpen; if (!W.qOpen) W.pick = null; render(); });
+      line.appendChild(q);
+      if (W.qOpen) line.appendChild(W.pop(T, e, has, admin));
+      host.appendChild(line);
+      return true;
+    };
+    W.pop = (T, e, has, admin) => {
+      const pop = document.createElement('div');
+      pop.className = 'nh-rt-cm-pop';
+      pop.addEventListener('click', (ev) => ev.stopPropagation());
+      pop.addEventListener('keydown', (ev) => ev.stopPropagation());
+      if (W.pick) { pop.appendChild(W.picker(T)); return pop; }
+      if (has) {
+        const t = document.createElement('div'); t.className = 'nh-rt-cm-pt'; t.textContent = (e.title || '') + (e.by ? ' · ' + e.by : ''); pop.appendChild(t);
+        const n = document.createElement('div'); n.className = 'nh-rt-cm-pn'; n.textContent = nhRtStarText(e.r) + ' · ' + nhCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords); pop.appendChild(n);
+        const a = document.createElement('a'); a.className = 'nh-rt-cm-src'; a.href = e.url || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = (P().cmOpen || 'Open on Goodreads') + ' ↗'; pop.appendChild(a);
       } else {
-        // Nobody on Goodreads has rated this edition, so there is no score to
-        // take; say so rather than leave a blank where the button would be.
-        const none = document.createElement('span');
-        none.className = 'nh-rt-cm-novotes';
-        none.textContent = P.cmNoVotes || 'no ratings yet';
-        row.appendChild(none);
+        const t = document.createElement('div'); t.className = 'nh-rt-cm-pn'; t.textContent = P().cmNone || 'No match'; pop.appendChild(t);
       }
-      box.appendChild(row);
-    });
-    return box;
+      if (admin) {
+        const row = document.createElement('div');
+        row.className = 'nh-rt-cm-prow';
+        if (has) {
+          const rf = document.createElement('button');
+          rf.type = 'button'; rf.className = 'nh-rt-btn nh-rt-cm-use';
+          rf.textContent = W.refreshing ? '…' : (P().cmRefresh || 'Refresh');
+          rf.disabled = !!W.refreshing;
+          rf.addEventListener('click', () => W.refresh(e));
+          row.appendChild(rf);
+        }
+        const fix = document.createElement('button');
+        fix.type = 'button'; fix.className = 'nh-rt-btn nh-rt-cm-use';
+        fix.textContent = has ? (P().cmWrong || 'Wrong book?') : (P().cmFind || 'Find a community rating…');
+        fix.addEventListener('click', () => { W.pick = 'loading'; render(); W.search(''); });
+        row.appendChild(fix);
+        pop.appendChild(row);
+      }
+      return pop;
+    };
+    // Candidates for this book; `custom` is the admin's own search text.
+    W.search = (custom) => {
+      const id = W.id;
+      if (!id || W.busy || typeof window.__nhCmCandidates !== 'function') return;
+      W.busy = true;
+      nhCmMeta(id)
+        .then((meta) => { if (!W.query) W.query = meta.title; return window.__nhCmCandidates(custom ? { title: custom, author: meta.author, isbn: '' } : meta); })
+        .then((list) => { W.busy = false; if (W.id !== id) return; W.pick = list || []; render(); })
+        .catch(() => { W.busy = false; if (W.id === id) { W.pick = []; render(); } });
+    };
+    W.save = (entry, keepOpen) => {
+      const id = W.id;
+      const body = { set: {} };
+      body.set[id] = entry;
+      return fetch('/_nh/api/community-admin', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
+        .then((r) => { if (r.ok && W.id === id) { W.entry = entry; W.pick = null; if (!keepOpen) W.qOpen = false; render(); } });
+    };
+    W.picker = (T) => {
+      const box = document.createElement('div');
+      box.className = 'nh-rt-cm-pick';
+      // Your own search text, for titles our guesses get wrong ("Minecraft 11 - Castle Redstone").
+      const sf = document.createElement('div'); sf.className = 'nh-rt-cm-sf';
+      const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'nh-rt-cm-si'; inp.value = W.query || ''; inp.placeholder = P().cmSearchPh || 'Search Goodreads…';
+      inp.setAttribute('autocomplete', 'off'); inp.setAttribute('data-lpignore', 'true'); inp.setAttribute('data-1p-ignore', ''); inp.setAttribute('data-bwignore', '');
+      const go = () => { const v = inp.value.trim(); if (!v) return; W.query = v; W.pick = 'loading'; render(); W.search(v); };
+      inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); go(); } });
+      const gb = document.createElement('button'); gb.type = 'button'; gb.className = 'nh-rt-btn nh-rt-cm-use'; gb.textContent = '🔍'; gb.title = P().cmSearchPh || 'Search Goodreads…'; gb.addEventListener('click', go);
+      sf.appendChild(inp); sf.appendChild(gb); box.appendChild(sf);
+      if (W.pick === 'loading') { const l = document.createElement('div'); l.className = 'nh-rt-cm-pn'; l.textContent = '…'; box.appendChild(l); return box; }
+      const none = document.createElement('button');
+      none.type = 'button'; none.className = 'nh-rt-cm-fix'; none.textContent = P().cmNone || 'No match';
+      none.addEventListener('click', () => W.save({ miss: 1, manual: 1, at: Date.now() }));
+      box.appendChild(none);
+      if (!W.pick.length) { const l = document.createElement('div'); l.className = 'nh-rt-cm-pn'; l.textContent = P().cmNone || 'No match'; box.appendChild(l); }
+      W.pick.forEach((c) => {
+        const row = document.createElement('div'); row.className = 'nh-rt-cm-row';
+        const txt = document.createElement('span');
+        txt.textContent = 'Goodreads · ' + c.title + (c.by ? ' · ' + c.by : '') + (c.year ? ' · ' + c.year : '') + (c.r != null ? ' · ' + nhRtStarText(c.r) + ' (' + nhCmFmtN(c.n) + ')' : '');
+        row.appendChild(txt);
+        if (c.r != null && c.n > 0) {
+          const use = document.createElement('button');
+          use.type = 'button'; use.className = 'nh-rt-btn nh-rt-cm-use'; use.textContent = P().cmUse || 'Use this';
+          use.addEventListener('click', () => W.save({ r: Math.round(c.r * 100) / 100, n: c.n, src: c.src, key: c.key, url: c.url, title: c.title, by: c.by, manual: 1, at: Date.now() }));
+          row.appendChild(use);
+        } else {
+          const nv = document.createElement('span'); nv.className = 'nh-rt-cm-novotes'; nv.textContent = P().cmNoVotes || 'no ratings yet'; row.appendChild(nv);
+        }
+        box.appendChild(row);
+      });
+      return box;
+    };
+    // Same Goodreads id, fresh numbers; everything else (manual pick included) kept.
+    W.refresh = (e) => {
+      const id = W.id;
+      if (!id || W.refreshing || typeof window.__nhCmCandidates !== 'function') return;
+      W.refreshing = true; render();
+      nhCmMeta(id)
+        .then((meta) => window.__nhCmCandidates(meta))
+        .then((list) => {
+          const same = (list || []).find((c) => c.key && c.key === e.key && c.r != null && c.n > 0);
+          if (!same) return null;
+          return W.save(Object.assign({}, e, { r: Math.round(same.r * 100) / 100, n: same.n, at: Date.now() }), true);
+        })
+        .catch(() => {})
+        .then(() => { W.refreshing = false; render(); });
+    };
+    W.close = () => { if (W.qOpen) { W.qOpen = false; W.pick = null; render(); } };
+    return W;
   }
+  // The book page's widget, painted by nhRtRender.
+  const nhCm = nhCmWidget(() => nhRtRender());
+  function nhRtCmFetch(itemId) { nhCm.setItem(itemId); }
+  function nhRtCmLine(section, T, me) { nhCm.line(section, T, me); }
+  // The Edit details window's widget: enhancements.js finds the open window
+  // and hands over a host element plus the item it currently shows.
+  const nhCmEm = { w: null, host: null };
+  window.__nhCmMount = function (host, itemId) {
+    if (!nhCmEm.w) nhCmEm.w = nhCmWidget(() => { if (nhCmEm.host && document.body.contains(nhCmEm.host)) nhCmEm.paint(); });
+    nhCmEm.paint = () => { const h = nhCmEm.host; h.textContent = ''; nhCmEm.w.line(h, nhRtT(), nhRtMe()); };
+    const changed = nhCmEm.host !== host || nhCmEm.w.id !== itemId;
+    nhCmEm.host = host;
+    nhCmEm.w.setItem(itemId);
+    if (changed || !host.childElementCount) nhCmEm.paint();
+  };
+  // Click anywhere else, or Escape, closes an open popover.
+  document.addEventListener('click', () => { nhCm.close(); if (nhCmEm.w) nhCmEm.w.close(); });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { nhCm.close(); if (nhCmEm.w) nhCmEm.w.close(); } });
 
   // Series-page mount API: enhancements.js calls this every tick from the series
   // header with key "series:<seriesId>". It reuses the SAME widget state, renderer
