@@ -1,4 +1,4 @@
-/* NanoHive ABS - Book Details Redesign  v1.58.0  (injected build) */
+/* NanoHive ABS - Book Details Redesign  v1.60.0  (injected build) */
 
 (function () {
   'use strict';
@@ -540,9 +540,10 @@
     .nh-rt-cm-si { flex: 1 1 auto; min-width: 0; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 5px 9px; color: #f4eee2; font-size: 0.84rem; outline: none; }
     .nh-rt-cm-si:focus { border-color: var(--nh-amber, #e0c27a); }
     /* inside the Edit details window's header (which is pointer-events:none) */
-    #nh-em-cm { position: absolute; top: 3.4rem; left: 1rem; z-index: 40; pointer-events: auto; max-width: 66%; }
-    #nh-em-cm .nh-rt-cm { font-size: 0.8rem; }
-    #nh-em-cm .nh-rt-cm-pop { z-index: 3000; min-width: 520px; max-width: min(720px, 90vw); }
+    /* the Goodreads card in the Edit details window's Tools tab */
+    #nh-em-cm .nh-rt-cm { font-size: 0.9rem; margin: 0; }
+    .nh-rt-cm-pop.nh-rt-cm-inline { position: static; width: 100%; min-width: 0; max-width: none; box-sizing: border-box; margin-top: 14px; box-shadow: none; background: rgba(0,0,0,0.18); }
+    .nh-rt-cm-inline .nh-rt-cm-pick { max-height: none; }
     .nh-rt-cm-novotes { flex: none; font-size: 0.74rem; color: #7d746a; font-style: italic; white-space: nowrap; }
     @media (max-width: 640px) {
       #nh-ratings { max-width: 100%; margin: -4px 0 24px; }
@@ -1442,7 +1443,9 @@
           if (!again) setTimeout(() => { if (W.id === itemId) W.auto(itemId, existing, true); }, 20000);
         });
     };
-    W.line = (host, T, me) => {
+    // panelHost: render the box INLINE there (full width, in the page flow)
+    // instead of floating under the line; used inside the Edit details window.
+    W.line = (host, T, me, panelHost) => {
       if (window.__nhCmEnabled && !window.__nhCmEnabled()) return false;
       const e = W.entry;
       const has = !!(e && typeof e.r === 'number');
@@ -1461,7 +1464,10 @@
       q.title = has ? (e.title || '') : (P().cmFind || 'Find a community rating…');
       q.addEventListener('click', (ev) => { ev.stopPropagation(); W.qOpen = !W.qOpen; if (!W.qOpen) W.pick = null; render(); });
       line.appendChild(q);
-      if (W.qOpen) line.appendChild(W.pop(T, e, has, admin));
+      if (W.qOpen) {
+        const pop = W.pop(T, e, has, admin);
+        if (panelHost) { pop.classList.add('nh-rt-cm-inline'); panelHost.appendChild(pop); } else line.appendChild(pop);
+      }
       host.appendChild(line);
       return true;
     };
@@ -1573,12 +1579,12 @@
   function nhRtCmLine(section, T, me) { nhCm.line(section, T, me); }
   // The Edit details window's widget: enhancements.js finds the open window
   // and hands over a host element plus the item it currently shows.
-  const nhCmEm = { w: null, host: null };
-  window.__nhCmMount = function (host, itemId) {
+  const nhCmEm = { w: null, host: null, panel: null };
+  window.__nhCmMount = function (host, itemId, panelHost) {
     if (!nhCmEm.w) nhCmEm.w = nhCmWidget(() => { if (nhCmEm.host && document.body.contains(nhCmEm.host)) nhCmEm.paint(); });
-    nhCmEm.paint = () => { const h = nhCmEm.host; h.textContent = ''; nhCmEm.w.line(h, nhRtT(), nhRtMe()); };
+    nhCmEm.paint = () => { const h = nhCmEm.host; h.textContent = ''; if (nhCmEm.panel) nhCmEm.panel.textContent = ''; nhCmEm.w.line(h, nhRtT(), nhRtMe(), nhCmEm.panel); };
     const changed = nhCmEm.host !== host || nhCmEm.w.id !== itemId;
-    nhCmEm.host = host;
+    nhCmEm.host = host; nhCmEm.panel = panelHost || null;
     nhCmEm.w.setItem(itemId);
     if (changed || !host.childElementCount) nhCmEm.paint();
   };
