@@ -329,7 +329,7 @@ server {
     location ~ ^/_nh/gr/(?<nh_gr_path>.*)$ {
         auth_request /_nh/api/whoami;
         if ($nh_gr_upstream = "") { return 404; }
-        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=30s ipv6=off;
         resolver_timeout 5s;
         proxy_pass $nh_gr_upstream/$nh_gr_path$is_args$args;
         proxy_set_header Host $proxy_host;
@@ -345,11 +345,12 @@ server {
     # (ABS custom-provider list, compose service name, the host) and save it.
     location = /_nh/gr-probe {
         auth_request /_nh/admincheck;
-        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=30s ipv6=off;
         resolver_timeout 3s;
         if ($arg_up !~ "^https?://[A-Za-z0-9._:-]+(/[A-Za-z0-9._/-]*)?$") { return 400; }
+        if ($arg_p !~ "^(ratings|search)$") { return 400; }
         set $nh_gr_probe $arg_up;
-        proxy_pass $nh_gr_probe/search?query=Dune&author=Frank%20Herbert;
+        proxy_pass $nh_gr_probe/$arg_p?query=Dune&author=Frank%20Herbert;
         proxy_set_header Host $proxy_host;
         proxy_set_header Authorization "";
         proxy_set_header Cookie "";

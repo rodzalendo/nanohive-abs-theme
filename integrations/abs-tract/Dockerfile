@@ -3,8 +3,9 @@
 # abs-tract (MIT, github.com/ahobsonsayers/abs-tract) is the Goodreads metadata
 # provider people already run next to Audiobookshelf. Its answers carry no
 # rating numbers; ratings.patch (by ThomasTechArtist) adds four fields to the
-# search results, which NanoHive reads for its community ratings. Pinned to the
-# revision the patch was written against.
+# search results, and main.go/works.go add /goodreads/ratings: one Goodreads
+# call per lookup instead of ~200, which is what makes lookups reliable under
+# load. Pinned to the revision the patch was written against.
 #
 #   docker run -d --name abs-tract -p 5555:5555 ghcr.io/rodzalendo/abs-tract-ratings
 #   NH_GOODREADS_UPSTREAM=http://abs-tract:5555/goodreads   (in the nanohive container)
@@ -16,6 +17,10 @@ WORKDIR /src
 RUN git clone https://github.com/ahobsonsayers/abs-tract.git . && \
     git checkout 10be524a5ae436476e2c3a8cb0f0a7e6b95525b3
 COPY ratings.patch /tmp/ratings.patch
+# NanoHive additions: a lean /goodreads/ratings endpoint (one Goodreads call per
+# lookup, serialised, retried) next to the stock routes. See main.go / works.go.
+COPY works.go /src/goodreads/works.go
+COPY main.go /src/main.go
 RUN git apply /tmp/ratings.patch && go mod download && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/abs-tract .
 

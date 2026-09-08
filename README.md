@@ -175,9 +175,10 @@ these same steps. Step by step:
    in Audiobookshelf) and says "Goodreads: connected" once found. Running it some other way?
    Paste its address into the card, or set `NH_GOODREADS_UPSTREAM` on the theme container.
 
-3. Book pages fill in by themselves as people browse. The small "?" next to a score shows
-   which Goodreads book it came from; admins can change the match right there. The switch
-   on the card turns the whole thing off for everyone.
+3. Book pages fill in by themselves as people browse, or tick some libraries on the card and
+   press "Scan for ratings" to do them all in one go (leave the tab open, it takes a while).
+   The small "?" next to a score shows which Goodreads book it came from; admins can change
+   the match right there. The switch on the card turns the whole thing off for everyone.
 
 No account, no API key, nothing else to set up. The helper is
 [abs-tract](https://github.com/ahobsonsayers/abs-tract) (MIT) with a small patch that adds the

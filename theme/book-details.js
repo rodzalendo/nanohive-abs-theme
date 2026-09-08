@@ -1,4 +1,4 @@
-/* NanoHive ABS - Book Details Redesign  v1.52.0  (injected build) */
+/* NanoHive ABS - Book Details Redesign  v1.55.0  (injected build) */
 
 (function () {
   'use strict';
@@ -522,8 +522,9 @@
     .nh-rt-cm-q:hover { color: var(--nh-amber, #e0c27a); border-color: var(--nh-amber, #e0c27a); }
     .nh-rt-cm-pop { position: absolute; left: 0; top: calc(100% + 8px); z-index: 60; min-width: 280px; max-width: 620px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; background: var(--nh-raised, #221e1a); box-shadow: 0 12px 32px rgba(0,0,0,0.45); font-size: 0.84rem; color: #d8cfc2; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
     .nh-rt-cm-pt { color: #f4eee2; font-weight: 600; }
+    .nh-rt-cm-prow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
     .nh-rt-cm-pn { color: #a99f8f; font-size: 0.8rem; }
-    .nh-rt-cm-pick { width: 100%; max-height: 360px; overflow-y: auto; font-size: 0.84rem; color: #d8cfc2; }
+    .nh-rt-cm-pick { width: 100%; max-height: 360px; overflow-y: auto; scrollbar-gutter: stable; padding-right: 14px; box-sizing: border-box; font-size: 0.84rem; color: #d8cfc2; }
     .nh-rt-cm-pick > .nh-rt-cm-fix { display: inline-block; margin-bottom: 4px; }
     .nh-rt-cm-fix { background: none; border: none; color: #8a8075; cursor: pointer; font-size: 0.78rem; text-decoration: none; padding: 0; font-family: inherit; }
     .nh-rt-cm-fix:hover { color: var(--nh-amber, #e0c27a); }
@@ -1397,12 +1398,13 @@
   }
   // No score yet: this visit looks it up and stores it, so the map fills in as
   // people browse (the server accepts a gap-fill from any signed-in user, never
-  // an overwrite). A recorded miss is retried after a week.
+  // an overwrite). A recorded miss is retried after six hours: Goodreads and
+  // the helper have bad moments, and a miss from one of them must not stick.
   const nhCmTried = {};
   function nhRtCmAuto(itemId, existing, again) {
     if ((!again && nhCmTried[itemId]) || typeof window.__nhCmLookup !== 'function') return;
     if (existing && existing.manual) return;
-    if (existing && existing.miss && (Date.now() - (existing.at || 0)) < 7 * 86400000) return;
+    if (existing && existing.miss && (Date.now() - (existing.at || 0)) < 6 * 3600000) return;
     nhCmTried[itemId] = again ? 'retried' : true;
     fetch('/api/items/' + itemId, { headers: nhRtHeaders(false) })
       .then((r) => (r.ok ? r.json() : null))
@@ -1499,14 +1501,48 @@
       pop.appendChild(t);
     }
     if (admin) {
+      const row = document.createElement('div');
+      row.className = 'nh-rt-cm-prow';
+      if (has) {
+        // Same Goodreads book, fresh numbers (votes move every day).
+        const rf = document.createElement('button');
+        rf.type = 'button';
+        rf.className = 'nh-rt-btn nh-rt-cm-use';
+        rf.textContent = nhCm.refreshing ? '…' : (P.cmRefresh || 'Refresh');
+        rf.disabled = !!nhCm.refreshing;
+        rf.addEventListener('click', () => nhRtCmRefresh(e));
+        row.appendChild(rf);
+      }
       const fix = document.createElement('button');
       fix.type = 'button';
       fix.className = 'nh-rt-btn nh-rt-cm-use';
       fix.textContent = has ? (P.cmWrong || 'Wrong book?') : (P.cmFind || 'Find a community rating…');
       fix.addEventListener('click', () => { nhCm.pick = 'loading'; nhRtRender(); nhRtCmSearch(); });
-      pop.appendChild(fix);
+      row.appendChild(fix);
+      pop.appendChild(row);
     }
     return pop;
+  }
+  // Re-read the numbers for the book already matched: find the same Goodreads
+  // id among today's candidates and keep everything else (manual pick included).
+  function nhRtCmRefresh(e) {
+    const id = nhCm.id;
+    if (!id || nhCm.refreshing || typeof window.__nhCmCandidates !== 'function') return;
+    nhCm.refreshing = true; nhRtRender();
+    fetch('/api/items/' + id, { headers: nhRtHeaders(false) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((it) => {
+        const md = (it && it.media && it.media.metadata) || {};
+        return window.__nhCmCandidates({ title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' });
+      })
+      .then((list) => {
+        const same = (list || []).find((c) => c.key && c.key === e.key && c.r != null && c.n > 0);
+        if (!same) return null;
+        const fresh = Object.assign({}, e, { r: Math.round(same.r * 100) / 100, n: same.n, at: Date.now() });
+        return nhRtCmSave(fresh, true);
+      })
+      .catch(() => {})
+      .then(() => { nhCm.refreshing = false; nhRtRender(); });
   }
   // Click anywhere else, or Escape, closes the popover.
   document.addEventListener('click', () => { if (nhCm.qOpen) { nhCm.qOpen = false; nhCm.pick = null; nhRtRender(); } });
@@ -1531,12 +1567,12 @@
       })
       .catch(() => { nhCm.busy = false; });
   }
-  function nhRtCmSave(entry) {
+  function nhRtCmSave(entry, keepOpen) {
     const id = nhCm.id;
     const body = { set: {} };
     body.set[id] = entry;
     return fetch('/_nh/api/community-admin', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
-      .then((r) => { if (r.ok && nhCm.id === id) { nhCm.entry = entry; nhCm.pick = null; nhRtRender(); } });
+      .then((r) => { if (r.ok && nhCm.id === id) { nhCm.entry = entry; nhCm.pick = null; if (!keepOpen) nhCm.qOpen = false; nhRtRender(); } });
   }
   function nhRtCmPicker(P, T) {
     const box = document.createElement('div');
