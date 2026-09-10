@@ -141,6 +141,7 @@ Server Defaults), which also beat the env vars.
 | `NH_SOCIAL` | *(empty)* | `false` disables every social feature; the admin Social card decides otherwise |
 | `NH_FOUC_BG` | `#181512` | Background before the theme loads, match your base theme |
 | `NH_GOODREADS_UPSTREAM` | *(empty)* | Address of the abs-tract helper for Goodreads community ratings, e.g. `http://abs-tract:5555/goodreads` (see Good to know) |
+| `NH_RESOLVER` | *(from resolv.conf)* | DNS servers nginx uses for the helper relays. Normally found by itself; set it only if a helper by hostname cannot be found |
 | `NH_PROXY_BUFFER_SIZE` | `16k` | nginx upstream header buffer. Raise it if OIDC logins die with a 502 for users with many groups |
 
 Canvas colours for `NH_FOUC_BG`: `warm` `#181512` · `slate` `#111625` · `black` `#080808` ·
@@ -176,7 +177,10 @@ these same steps. Step by step:
    Paste its address into the card, or set `NH_GOODREADS_UPSTREAM` on the theme container.
 
 3. Book pages fill in by themselves as people browse, or tick some libraries on the card and
-   press "Scan for ratings" to do them all in one go (leave the tab open, it takes a while).
+   press "Scan for ratings" to do them all in one go. The helper does the work on its own:
+   close the tab, come back later from any device, the card shows where it is and Stop ends
+   it. Results land as they come in. While a book is being looked up its page says so, and a
+   book Goodreads does not know says "No Goodreads match found".
    The small "?" next to a score shows which Goodreads book it came from; admins can change
    the match right there, type their own search text, or refresh the numbers. The same line
    sits in Audiobookshelf's Edit details window, so you can fix matches book after book with

@@ -20,7 +20,7 @@ COPY ratings.patch /tmp/ratings.patch
 # NanoHive additions: a lean /goodreads/ratings endpoint (one Goodreads call per
 # lookup, serialised, retried) next to the stock routes. See main.go / works.go.
 COPY works.go /src/goodreads/works.go
-COPY main.go /src/main.go
+COPY main.go match.go scan.go /src/
 RUN git apply /tmp/ratings.patch && go mod download && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/abs-tract .
 

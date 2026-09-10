@@ -329,8 +329,9 @@ server {
     location ~ ^/_nh/gr/(?<nh_gr_path>.*)$ {
         auth_request /_nh/api/whoami;
         if ($nh_gr_upstream = "") { return 404; }
-        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=30s ipv6=off;
+        resolver ${NH_RESOLVER} valid=30s ipv6=off;
         resolver_timeout 5s;
+        proxy_connect_timeout 5s;
         proxy_pass $nh_gr_upstream/$nh_gr_path$is_args$args;
         proxy_set_header Host $proxy_host;
         proxy_ssl_server_name on;
@@ -340,12 +341,48 @@ server {
         proxy_read_timeout 40s;
     }
 
+    # Background scan (#34): starting and stopping is admin-only; the book list
+    # travels in the POST body (a few MB for a big library). Status is read
+    # through the plain relay above.
+    location ~ ^/_nh/gr-admin/(?<nh_gra_path>scan(?:/stop)?)$ {
+        auth_request /_nh/admincheck;
+        if ($nh_gr_upstream = "") { return 404; }
+        client_max_body_size 16m;
+        resolver ${NH_RESOLVER} valid=30s ipv6=off;
+        resolver_timeout 3s;
+        proxy_connect_timeout 5s;
+        proxy_pass $nh_gr_upstream/$nh_gra_path;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header Authorization "";
+        proxy_set_header Cookie "";
+        proxy_read_timeout 60s;
+    }
+    # Internal: the njs sync pulls finished results from the helper into the
+    # community store, so they land without any browser doing the writing.
+    location /_nh/gr-int/scan/results {
+        internal;
+        subrequest_output_buffer_size 2m;
+        resolver ${NH_RESOLVER} valid=30s ipv6=off;
+        resolver_timeout 3s;
+        proxy_connect_timeout 5s;
+        proxy_pass $nh_gr_upstream/scan/results$is_args$args;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header Authorization "";
+        proxy_set_header Cookie "";
+        proxy_set_header Accept-Encoding "";
+        proxy_read_timeout 20s;
+    }
+    location = /_nh/api/community-sync {
+        auth_request /_nh/api/whoami;
+        js_content nh_ratings.communitySync;
+    }
+
     # Admin-only discovery probe (#27): asks one candidate helper address the
     # standard test question, so the settings card can find abs-tract by itself
     # (ABS custom-provider list, compose service name, the host) and save it.
     location = /_nh/gr-probe {
         auth_request /_nh/admincheck;
-        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=30s ipv6=off;
+        resolver ${NH_RESOLVER} valid=30s ipv6=off;
         resolver_timeout 3s;
         if ($arg_up !~ "^https?://[A-Za-z0-9._:-]+(/[A-Za-z0-9._/-]*)?$") { return 400; }
         if ($arg_p !~ "^(ratings|search)$") { return 400; }
@@ -377,7 +414,7 @@ server {
         auth_request /_nh/api/whoami;
         client_max_body_size 32k;
         client_body_buffer_size 32k;
-        resolver 127.0.0.11 1.1.1.1 8.8.8.8 valid=300s ipv6=off;
+        resolver ${NH_RESOLVER} valid=300s ipv6=off;
         resolver_timeout 5s;
         set $nh_hc_upstream "${NH_HC_UPSTREAM}";
         proxy_pass $nh_hc_upstream;

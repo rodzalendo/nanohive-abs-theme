@@ -5,3 +5,4 @@
 *.template      text eol=lf
 *.js            text eol=lf
 docker-entrypoint.sh text eol=lf
+*.envsh         text eol=lf

@@ -1,4 +1,4 @@
-/* NanoHive ABS - Book Details Redesign  v1.60.0  (injected build) */
+/* NanoHive ABS - Book Details Redesign  v1.61.0  (injected build) */
 
 (function () {
   'use strict';
@@ -545,6 +545,9 @@
     .nh-rt-cm-pop.nh-rt-cm-inline { position: static; width: 100%; min-width: 0; max-width: none; box-sizing: border-box; margin-top: 14px; box-shadow: none; background: rgba(0,0,0,0.18); }
     .nh-rt-cm-inline .nh-rt-cm-pick { max-height: none; }
     .nh-rt-cm-novotes { flex: none; font-size: 0.74rem; color: #7d746a; font-style: italic; white-space: nowrap; }
+    .nh-rt-cm-state { font-size: 0.8rem; color: #7d746a; font-style: italic; }
+    .nh-rt-cm-looking { animation: nh-cm-pulse 1.6s ease-in-out infinite; }
+    @keyframes nh-cm-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
     @media (max-width: 640px) {
       #nh-ratings { max-width: 100%; margin: -4px 0 24px; }
       #nh-rt-picker { font-size: 1.8rem; }
@@ -1406,11 +1409,13 @@
       .then((it) => { const md = (it && it.media && it.media.metadata) || {}; return { title: md.title || '', author: (md.authors && md.authors[0] && md.authors[0].name) || md.authorName || '', isbn: md.isbn || '' }; });
   }
   function nhCmWidget(render) {
-    const W = { id: null, entry: null, pick: null, busy: false, qOpen: false, refreshing: false, query: '' };
+    // state: what the line says while there is no score: 'looking' during the
+    // lookup, 'miss' when Goodreads had nothing, 'err' when the helper failed.
+    const W = { id: null, entry: null, pick: null, busy: false, qOpen: false, refreshing: false, query: '', state: null };
     const P = () => (window.__nhPanelT && window.__nhPanelT()) || {};
     W.setItem = (itemId) => {
       if (W.id === itemId) return;
-      W.id = itemId; W.entry = null; W.pick = null; W.qOpen = false; W.query = '';
+      W.id = itemId; W.entry = null; W.pick = null; W.qOpen = false; W.query = ''; W.state = null;
       if (window.__nhCmEnabled && !window.__nhCmEnabled()) return;
       fetch('/_nh/api/community?item=' + encodeURIComponent(itemId), { headers: nhRtHeaders(false), credentials: 'include' })
         .then((r) => (r.ok ? r.json() : null))
@@ -1418,30 +1423,38 @@
           if (W.id !== itemId) return;
           const e = j && j.items && j.items[itemId];
           W.entry = e || null;
-          if (W.entry && typeof W.entry.r === 'number') render();
-          else W.auto(itemId, e);
+          if (W.entry && typeof W.entry.r === 'number') { W.state = null; render(); return; }
+          W.state = (e && e.miss) ? 'miss' : null;
+          if (!W.auto(itemId, e)) render();
         }).catch(() => {});
     };
     // No score yet: look it up now and store it. A recorded miss is retried
     // after six hours (Goodreads and the helper have bad moments).
+    // Returns true when a lookup was started (the line then says "looking").
     W.auto = (itemId, existing, again) => {
-      if ((!again && nhCmTried[itemId]) || typeof window.__nhCmLookup !== 'function') return;
-      if (existing && existing.manual) return;
-      if (existing && existing.miss && (Date.now() - (existing.at || 0)) < 6 * 3600000) return;
+      if ((!again && nhCmTried[itemId]) || typeof window.__nhCmLookup !== 'function') return false;
+      if (existing && existing.manual) return false;
+      if (existing && existing.miss && (Date.now() - (existing.at || 0)) < 6 * 3600000) return false;
+      if (window.__nhCmOff && window.__nhCmOff()) return false;
       nhCmTried[itemId] = again ? 'retried' : true;
+      W.state = 'looking'; render();
       nhCmMeta(itemId)
         .then((meta) => (meta.title ? window.__nhCmLookup(meta) : null))
         .then((entry) => {
-          if (!entry || W.id !== itemId) return;
+          if (W.id !== itemId) return;
+          if (!entry) { W.state = 'miss'; render(); return; }
           const body = { set: {} };
           body.set[itemId] = entry;
           return fetch('/_nh/api/community', { method: 'POST', headers: nhRtHeaders(true), credentials: 'include', body: JSON.stringify(body) })
-            .then((r) => { if (r.ok && W.id === itemId) { W.entry = entry; if (typeof entry.r === 'number') render(); } });
+            .then((r) => { if (W.id !== itemId) return; if (r.ok) W.entry = entry; W.state = (typeof entry.r === 'number') ? null : 'miss'; render(); });
         })
         .catch(() => {
-          if (window.__nhCmOff && window.__nhCmOff()) { if (W.id === itemId) render(); return; }
+          if (W.id !== itemId) return;
+          if (window.__nhCmOff && window.__nhCmOff()) { W.state = null; render(); return; }
+          W.state = 'err'; render();
           if (!again) setTimeout(() => { if (W.id === itemId) W.auto(itemId, existing, true); }, 20000);
         });
+      return true;
     };
     // panelHost: render the box INLINE there (full width, in the page flow)
     // instead of floating under the line; used inside the Edit details window.
@@ -1450,21 +1463,30 @@
       const e = W.entry;
       const has = !!(e && typeof e.r === 'number');
       const admin = !!(me && me.admin) && !(window.__nhCmOff && window.__nhCmOff());
-      if (!has && !admin) return false;
+      const st = has ? null : W.state;
+      if (!has && !admin && !st) return false;
       const line = document.createElement('div');
       line.className = 'nh-rt-cm';
+      if (st) {
+        // everyone sees what is going on: looking, nothing found, helper down
+        const s = document.createElement('span'); s.className = 'nh-rt-cm-state nh-rt-cm-' + st;
+        s.textContent = st === 'looking' ? (P().cmLooking || 'Looking on Goodreads…') : st === 'miss' ? (P().cmNoMatchYet || 'No Goodreads match found') : (P().cmGrErr || 'Goodreads not reachable, will try again');
+        line.appendChild(s);
+      }
       if (has) {
         const num = document.createElement('span'); num.className = 'nh-rt-cm-num'; num.textContent = nhRtStarText(e.r); line.appendChild(num);
         line.appendChild(nhRtStarsEl(e.r, false));
         const n = document.createElement('span'); n.className = 'nh-rt-cm-n'; n.textContent = nhCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords); line.appendChild(n);
         const a = document.createElement('a'); a.className = 'nh-rt-cm-src'; a.href = e.url || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Goodreads ↗'; line.appendChild(a);
       }
-      const q = document.createElement('button');
-      q.type = 'button'; q.className = 'nh-rt-cm-q'; q.textContent = '?';
-      q.title = has ? (e.title || '') : (P().cmFind || 'Find a community rating…');
-      q.addEventListener('click', (ev) => { ev.stopPropagation(); W.qOpen = !W.qOpen; if (!W.qOpen) W.pick = null; render(); });
-      line.appendChild(q);
-      if (W.qOpen) {
+      if (has || admin) {
+        const q = document.createElement('button');
+        q.type = 'button'; q.className = 'nh-rt-cm-q'; q.textContent = '?';
+        q.title = has ? (e.title || '') : (P().cmFind || 'Find a community rating…');
+        q.addEventListener('click', (ev) => { ev.stopPropagation(); W.qOpen = !W.qOpen; if (!W.qOpen) W.pick = null; render(); });
+        line.appendChild(q);
+      }
+      if (W.qOpen && (has || admin)) {
         const pop = W.pop(T, e, has, admin);
         if (panelHost) { pop.classList.add('nh-rt-cm-inline'); panelHost.appendChild(pop); } else line.appendChild(pop);
       }
@@ -1482,7 +1504,9 @@
         const n = document.createElement('div'); n.className = 'nh-rt-cm-pn'; n.textContent = nhRtStarText(e.r) + ' · ' + nhCmFmtN(e.n) + ' ' + nhRtWord(e.n, T.ratingWords); pop.appendChild(n);
         const a = document.createElement('a'); a.className = 'nh-rt-cm-src'; a.href = e.url || '#'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = (P().cmOpen || 'Open on Goodreads') + ' ↗'; pop.appendChild(a);
       } else {
-        const t = document.createElement('div'); t.className = 'nh-rt-cm-pn'; t.textContent = P().cmNone || 'No match'; pop.appendChild(t);
+        const t = document.createElement('div'); t.className = 'nh-rt-cm-pn';
+        t.textContent = W.state === 'looking' ? (P().cmLooking || 'Looking on Goodreads…') : W.state === 'err' ? (P().cmGrErr || 'Goodreads not reachable, will try again') : (P().cmNone || 'No match');
+        pop.appendChild(t);
       }
       if (admin) {
         const row = document.createElement('div');

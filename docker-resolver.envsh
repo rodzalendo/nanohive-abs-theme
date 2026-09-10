@@ -1,0 +1,13 @@
+#!/bin/sh
+# Sourced by the nginx image entrypoint (an .envsh is sourced, a .sh is run), so
+# the export below reaches the envsubst step that renders the config template.
+#
+# nginx asks the servers in a `resolver` line ROUND-ROBIN, not in order. The old
+# "127.0.0.11 1.1.1.1 8.8.8.8" made a compose service name (abs-tract) fail two
+# lookups in three: the public servers answer "no such host" and nginx caches
+# that. So use exactly the nameservers this container itself uses
+# (/etc/resolv.conf: Docker DNS on a compose network, the host DNS on a plain
+# bridge), public ones only when that list is empty. NH_RESOLVER overrides.
+ns=$(awk '/^nameserver/ && $2 !~ /:/ { printf "%s ", $2 }' /etc/resolv.conf 2>/dev/null)
+[ -n "$ns" ] || ns="1.1.1.1 8.8.8.8"
+export NH_RESOLVER="${NH_RESOLVER:-$ns}"

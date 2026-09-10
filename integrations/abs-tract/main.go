@@ -66,6 +66,38 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// searchWithGate is the one door to Goodreads: calls spaced ~1.1s apart across
+// every caller (the shared key is rate limited), three attempts, and the gate
+// is released during retry sleeps so nobody waits behind someone's bad luck.
+func searchWithGate(parent context.Context, query, field string) ([]goodreads.WorkHit, error) {
+	var works []goodreads.WorkHit
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		gate.Lock()
+		if wait := 1100*time.Millisecond - time.Since(lastCall); wait > 0 {
+			time.Sleep(wait)
+		}
+		ctx, cancel := context.WithTimeout(parent, 8*time.Second)
+		works, err = goodreads.DefaultClient.SearchWorks(ctx, query, field)
+		cancel()
+		lastCall = time.Now()
+		gate.Unlock()
+		if err == nil {
+			return works, nil
+		}
+		log.Printf("goodreads: attempt %d failed for %q: %v", attempt+1, query, err)
+		if parent.Err() != nil {
+			return nil, err
+		}
+		select {
+		case <-parent.Done():
+			return nil, parent.Err()
+		case <-time.After(time.Duration(1+attempt) * 1500 * time.Millisecond):
+		}
+	}
+	return nil, err
+}
+
 func ratingsHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimSpace(r.URL.Query().Get("query"))
 	author := strings.TrimSpace(r.URL.Query().Get("author"))
@@ -79,25 +111,7 @@ func ratingsHandler(w http.ResponseWriter, r *http.Request) {
 		query = strings.ReplaceAll(query, "-", "")
 	}
 
-	var works []goodreads.WorkHit
-	var err error
-	for attempt := 0; attempt < 3; attempt++ {
-		// The gate only spaces the calls out; nobody waits behind a retry sleep.
-		gate.Lock()
-		if wait := 1100*time.Millisecond - time.Since(lastCall); wait > 0 {
-			time.Sleep(wait)
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-		works, err = goodreads.DefaultClient.SearchWorks(ctx, query, field)
-		cancel()
-		lastCall = time.Now()
-		gate.Unlock()
-		if err == nil {
-			break
-		}
-		log.Printf("ratings: attempt %d failed for %q: %v", attempt+1, query, err)
-		time.Sleep(time.Duration(1+attempt) * 1500 * time.Millisecond)
-	}
+	works, err := searchWithGate(r.Context(), query, field)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "goodreads did not answer"})
 		return
@@ -133,11 +147,14 @@ func main() {
 		log.Fatalf("Failed to create router: %s", err)
 	}
 
+	job.restore()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/goodreads/ratings", ratingsHandler)
+	mux.HandleFunc("/goodreads/scan", scanHandler)
+	mux.HandleFunc("/goodreads/scan/", scanHandler)
 	mux.Handle("/", router)
 
-	log.Printf("Server listening on %s (with /goodreads/ratings)\n", serverAddress)
+	log.Printf("Server listening on %s (with /goodreads/ratings and /goodreads/scan)\n", serverAddress)
 	err = http.ListenAndServe(serverAddress, mux)
 	if err != nil {
 		log.Fatalf("Server exited with error: %s", err)

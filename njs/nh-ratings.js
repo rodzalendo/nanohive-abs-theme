@@ -1,4 +1,4 @@
-/* NanoHive ABS - Server-wide Ratings API  v1.27.0  (nginx njs module)
+/* NanoHive ABS - Server-wide Ratings API  v1.28.0  (nginx njs module)
 
    A tiny JSON API that lets every user of this server rate books (stars +
    short review, Plex-style) and see everyone else's ratings. Runs entirely
@@ -1271,7 +1271,8 @@ function community(r) {
     return send(r, 200, { ok: true, set: 1 });
   }
 
-  const store = body.clear === true ? { v: 1, items: {} } : readCommunity();
+  let store = readCommunity();
+  if (body.clear === true) store = { v: 1, items: {}, scanCursor: store.scanCursor || 0 }; // keep the cursor: old scan results must not flow back in
   let set = 0, del = 0, rejected = 0;
   if (Array.isArray(body.del)) {
     body.del.slice(0, COMMUNITY_BATCH).forEach(function (id) {
@@ -1307,4 +1308,47 @@ function grUpstream(r) {
   return /^https?:\/\//.test(env) ? env : '';
 }
 
-export default { handle, meta, avatar, stats, reports, dates, prefs, progress, social, community, grUpstream };
+/* Scan results sync (#34): pull what the helper's background scan has
+   finished since our cursor and merge it into the store. Any signed-in
+   visitor may trigger it; the data itself comes from the helper (a server),
+   never from the caller. Manual picks are never overwritten. */
+async function communitySync(r) {
+  const user = whoami(r);
+  if (!user) return send(r, 401, { error: 'not authenticated' });
+  // no helper set up: nothing to pull, and the page stops asking for the session
+  let up = '';
+  try { up = String(r.variables.nh_gr_upstream || ''); } catch (e) {}
+  if (!up) return send(r, 200, { ok: false, pulled: 0, helper: 'off' });
+  const store = readCommunity();
+  let cursor = Number(store.scanCursor) || 0;
+  let pulled = 0, rounds = 0;
+  try {
+    while (rounds < 5) {
+      rounds++;
+      const res = await r.subrequest('/_nh/gr-int/scan/results', { args: 'since=' + cursor });
+      if (res.status !== 200) return send(r, 200, { ok: false, pulled: pulled, cursor: cursor, helper: res.status });
+      const j = JSON.parse(res.responseText || '{}');
+      const items = j.items || {};
+      const ids = Object.keys(items);
+      ids.forEach(function (id) {
+        if (!ITEM_ID_RE.test(id)) return;
+        const cur = store.items[id];
+        if (cur && cur.manual) return;
+        const entry = cleanCommunityEntry(items[id]);
+        if (entry) { store.items[id] = entry; pulled++; }
+      });
+      const next = Number(j.next) || cursor;
+      if (next <= cursor || !ids.length) { cursor = Math.max(cursor, next); break; }
+      cursor = next;
+    }
+  } catch (e) {
+    return send(r, 200, { ok: false, pulled: pulled, cursor: cursor, error: 'sync failed' });
+  }
+  if (pulled || cursor !== (Number(store.scanCursor) || 0)) {
+    store.scanCursor = cursor;
+    try { writeCommunity(store); } catch (e) { return send(r, 500, { error: 'write failed' }); }
+  }
+  send(r, 200, { ok: true, pulled: pulled, cursor: cursor });
+}
+
+export default { handle, meta, avatar, stats, reports, dates, prefs, progress, social, community, grUpstream, communitySync };
