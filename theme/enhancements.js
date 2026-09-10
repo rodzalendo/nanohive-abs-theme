@@ -1,4 +1,4 @@
-/* NanoHive ABS - JS Enhancements  v6.244.0  (injected build) */
+/* NanoHive ABS - JS Enhancements  v6.245.0  (injected build) */
 
 (function () {
   'use strict';
@@ -2421,22 +2421,32 @@
         const scanAll = cmSec.querySelector('#nh-cm-scan-all');
         // The same switch rows as every other card (click anywhere on the row).
         const tglCls = (on) => 'border rounded-full flex items-center ' + (on ? 'bg-success border-success justify-end' : 'bg-primary border-black-100 justify-start');
+        // The choice is remembered server-side (hobesman: came back to the card
+        // mid-scan and every library was ticked again): the switched-OFF
+        // libraries and the "everything again" switch live in the server
+        // config, so any device shows the same, and a new library starts on.
+        const libsOff = () => Array.isArray(uiServerSettings.cmScanLibsOff) ? uiServerSettings.cmScanLibsOff : [];
+        const remember = () => {
+          uiServerSettings.cmScanLibsOff = Array.from(libsHost.querySelectorAll('.nh-cm-lib[data-on="0"]')).map((r) => r.dataset.id);
+          if (scanAll.dataset.on === '1') uiServerSettings.cmScanAll = true; else delete uiServerSettings.cmScanAll;
+          putServerConfig(Object.assign({}, uiServerSettings), status, '✓');
+        };
         const tglRow = (row, label, on) => {
           row.dataset.on = on ? '1' : '0';
           row.innerHTML = '<div><button type="button" class="' + tglCls(on) + '" style="width: 40px; transition: all 0.2s;">' +
             '<span class="rounded-full border border-black-50 shadow-sm bg-white" style="width: 20px; height: 20px;"></span></button></div>' +
             '<p class="pl-4 text-gray-200 group-hover:text-white transition-colors text-sm"></p>';
           row.querySelector('p').textContent = label;
-          row.addEventListener('click', () => { const next = row.dataset.on !== '1'; row.dataset.on = next ? '1' : '0'; row.querySelector('button').className = tglCls(next); });
+          row.addEventListener('click', () => { const next = row.dataset.on !== '1'; row.dataset.on = next ? '1' : '0'; row.querySelector('button').className = tglCls(next); remember(); });
           return row;
         };
-        tglRow(scanAll, T.cmScanAll || PANEL_T.en.cmScanAll, false);
+        tglRow(scanAll, T.cmScanAll || PANEL_T.en.cmScanAll, uiServerSettings.cmScanAll === true);
         fetch('/api/libraries', { headers: { Authorization: 'Bearer ' + nhSrToken() } }).then((r) => (r.ok ? r.json() : null)).then((j) => {
           ((j && j.libraries) || []).filter((l) => l.mediaType === 'book').forEach((l) => {
             const row = document.createElement('div');
             row.className = 'nh-cm-lib flex items-center py-1 cursor-pointer group';
             row.dataset.id = l.id;
-            libsHost.appendChild(tglRow(row, l.name, true));
+            libsHost.appendChild(tglRow(row, l.name, libsOff().indexOf(l.id) < 0));
           });
         }).catch(() => {});
         // Digits sit in fixed-width slots (tabular numerals + a reserved width
@@ -14379,7 +14389,7 @@
   // at-a-glance "what am I running" readout. Restore it and add the theme version.
   // Bump NH_THEME_VERSION on each release (the composite THEME_VERSION from NH_CONFIG is
   // shown on hover for exact per-file versions).
-  const NH_THEME_VERSION = 'v2.7.1';
+  const NH_THEME_VERSION = 'v2.7.2';
   // The RELEASES LIST, not this version's own tag. Linking to
   // /releases/tag/<version> looked tidier, but it 404s for any build running
   // ahead of its release, which is every staging build, and any nightly. The
